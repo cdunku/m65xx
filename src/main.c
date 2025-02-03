@@ -97,8 +97,8 @@ void load_tomharte(m65xx_t* const m, tomharte_t* const t, const char *file) {
 
 int main(int argc, char **argv) {
 
-  m65xx_t m = {0};
-  tomharte_t t = {0};
+  m65xx_t m;
+  tomharte_t t;
   m65xx_init(&m);
   load_tomharte(&m, &t, "tests/6502/v1/a9.json");
 
