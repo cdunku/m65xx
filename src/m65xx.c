@@ -83,10 +83,10 @@ static inline void accu(m65xx_t* const m) {
 }
 static inline void imme(m65xx_t* const m) {
   switch (m->tcu) {
-    case 0:
+    case 1:
       set_abus(m, m->pc++);
       break;
-    case 1:
+    case 2:
       // Execute instruction
       m6502_opcode_table[m->ir].instr(m); 
 
@@ -746,7 +746,7 @@ m65xx_opcodes_t m6502_opcode_table[0x100] = {
 void m65xx_init(m65xx_t* const m) {
   memset(m->ram, 0, 0x10000);
   m->pins = 0;
-  on(m, SYNC | RW);
+  on(m, (SYNC | RW));
   m->a = m->x = m->y = m->s = m->p;
   m->ir = 0xA9;
   m->p |= 0x20;
@@ -760,14 +760,14 @@ void m65xx_reset(m65xx_t* const m);
 static inline void m65xx_tick(m65xx_t* const m) {
   on(m, RW);
   // Check whether if Interrupt might occur
-  if(m->tcu == 0) {
+  if(m->pins & SYNC) {
     // m->ir = get_dbus(m);
     off(m, SYNC);
     m->pc++;
   }
+  m->tcu += 1;
   // Call instruction/addressing mode 
   m6502_opcode_table[m->ir].mode(m);
-  m->tcu++;
 }
 
 static inline uint8_t rb(m65xx_t* const m, uint16_t addr) {
@@ -778,14 +778,13 @@ static inline void wb(m65xx_t* const m, uint16_t addr, uint8_t data) {
 }
 
 void m65xx_run(m65xx_t* const m) {
-  if (m->pins & RW) {  // Read
+  if (m->pins & RW) {  // Read 
     set_dbus(m, rb(m, get_abus(m)));
   }
-
   m65xx_tick(m);
 
-  if (!(m->pins & RW)) {  // Write
-    wb(m, get_abus(m), get_dbus(m));  
+  if (!(m->pins & RW)) {  // Write  
+    wb(m, get_abus(m), get_dbus(m));    
   }
 }
 
