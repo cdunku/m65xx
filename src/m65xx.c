@@ -22,13 +22,13 @@ static inline void on(m65xx_t* const m, uint64_t pin) { m->pins |= pin; }
 static inline void off(m65xx_t* const m, uint64_t pin) { m->pins &= ~pin; }
 
 static inline void set_abus(m65xx_t* const m, uint16_t addr) { 
-  m->pins = ((m->pins & ~0xFFFF) | (addr & 0xFFFF)); 
+  m->pins = (m->pins & ~0xFFFF) | (addr & 0xFFFF);
 }
 static inline void set_dbus(m65xx_t* const m, uint8_t data) {
-  m->pins = ((m->pins & ~0xFF0000) | ((data & 0xFF) << 16));
+  m->pins = (m->pins & ~0xFF0000) | ((data & 0xFF) << 16);
 }
-static inline uint16_t get_abus(m65xx_t* const m) { return (m->pins &= 0xFFFF); }
-static inline uint8_t get_dbus(m65xx_t* const m) { return ((m->pins &= 0xFF0000) >> 16); }
+static inline uint16_t get_abus(m65xx_t* const m) { return (m->pins & 0xFFFF); }
+static inline uint8_t get_dbus(m65xx_t* const m) { return ((m->pins & 0xFF0000) >> 16); }
 
 static inline bool ret_cf(m65xx_t* const m) { return (m->p & CF); } // Returns carry flag
 static inline bool ret_df(m65xx_t* const m) { return (m->p & DF); } // Returns decimal flag 
@@ -739,6 +739,8 @@ static inline void jam(m65xx_t* const m) {
   m->pc--;
 }
 m65xx_opcodes_t m6502_opcode_table[0x100] = {
+  [0x00] = { .mode = brk, .instr = impl },
+  // ...
   [0xA9] = { .mode = imme, .instr = lda },
 };
 
@@ -747,7 +749,7 @@ void m65xx_init(m65xx_t* const m) {
   memset(m->ram, 0, 0x10000);
   m->pins = 0;
   on(m, (SYNC | RW));
-  m->a = m->x = m->y = m->s = m->p;
+  m->a = m->x = m->y = m->s = m->p = m->tcu = 0;
   m->ir = 0xA9;
   m->p |= 0x20;
   m->pc = m->ad = 0;
@@ -758,7 +760,6 @@ void m65xx_on(m65xx_t* const m);
 void m65xx_reset(m65xx_t* const m);
 
 static inline void m65xx_tick(m65xx_t* const m) {
-  on(m, RW);
   // Check whether if Interrupt might occur
   if(m->pins & SYNC) {
     // m->ir = get_dbus(m);
