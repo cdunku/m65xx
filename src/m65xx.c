@@ -670,7 +670,7 @@ static inline void idyw(m65xx_t* const m) {
 // Interrupts
 
 
-static inline void brkk(m65xx_t* const m) {
+static inline void brk(m65xx_t* const m) {
   switch (m->tcu) {
     case 1:
       set_abus(m, m->pc++);
@@ -780,7 +780,7 @@ static inline void jam(m65xx_t* const m) {
   m->pc--;
 }
 m65xx_opcodes_t m6502_opcode_table[0x100] = {
-  [0x00] = { .mode = brkk, .instr = impl },
+  [0x00] = { .mode = brk, .instr = impl },
   // ...
   [0xA9] = { .mode = imme, .instr = lda },
 };
