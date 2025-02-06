@@ -184,7 +184,7 @@ int main(void) {
     tomharte_t t;
 
     printf("Starting 6502 test...\n");
-    load_tomharte(&m, &t, "tests/6502/v1/a9.json");
+    load_tomharte(&m, &t, "tests/6502/v1/00.json");
 
     printf("Test completed!\n");
     return 0;
