@@ -33,13 +33,19 @@ static inline void set_abus_dbus(m65xx_t* const m, uint16_t addr, uint8_t data) 
 static inline uint16_t get_abus(m65xx_t* const m) { return (m->pins & 0xFFFF); }
 static inline uint8_t get_dbus(m65xx_t* const m) { return ((m->pins & 0xFF0000) >> 16); }
 
-static inline bool ret_cf(m65xx_t* const m) { return (m->p & CF); } // Returns carry flag
-static inline bool ret_df(m65xx_t* const m) { return (m->p & DF); } // Returns decimal flag 
-
 static inline void set_nz(m65xx_t* const m, uint8_t data) {
-  if(data >> 7) { m->p |= NF; } else { m->p &= ~NF; }
+  if(data & 0x80) { m->p |= NF; } else { m->p &= ~NF; }
   if(data == 0) { m->p |= ZF; } else { m->p &= ~ZF; }
 } 
+
+static inline void set_p(m65xx_t* const m, uint8_t data) {
+  if(data & 0x80) { m->p |= NF; } else { m->p &= ~NF; }
+  if(data & 0x40) { m->p |= VF; } else { m->p &= ~VF; }
+  if(data & 0x08) { m->p |= DF; } else { m->p &= ~DF; }
+  if(data & 0x04) { m->p |= IDF; } else { m->p &= ~IDF; }
+  if(data & 0x02) { m->p |= ZF; } else { m->p &= ~ZF; }
+  if(data & 0x01) { m->p |= CF; } else { m->p &= ~CF; }
+}
 
 static inline void m6502_fetch(m65xx_t* const m) {
   on(m, SYNC);
@@ -859,9 +865,48 @@ static inline void res(m65xx_t* const m);
 static inline void nop(m65xx_t* const m) {
   (void) *m;
 }
+
+// Clear/Set flags
+
 static inline void clc(m65xx_t* const m) {
   m->p &= ~CF;
 }
+
+// Jump instructions 
+
+static inline void jsr(m65xx_t* const m) {
+  switch (m->tcu) {
+    case 1:
+      set_abus(m, m->pc++);
+      break;
+    case 2:
+      m->adl = get_dbus(m);
+      set_abus(m, 0x100 | m->s);
+      break;
+    case 3:
+      off(m, RW);
+      set_abus_dbus(m, 0x100 | m->s--, m->pch);
+      break;
+    case 4:
+      off(m, RW);
+      set_abus_dbus(m, 0x100 | m->s--, m->pcl);
+      break;
+    case 5:
+      set_abus(m, m->pc);
+      break;
+    case 6:
+      m->adh = get_dbus(m);
+      set_abus(m, m->pc = m->ad);
+
+      m->tcu = 0;
+      m6502_fetch(m);
+      break;
+    default:
+      printf("Error: invalid cycle count for jsr\n");
+      break;
+  }
+}
+
 // Stack instructions 
 
 static inline void php(m65xx_t* const m) {
@@ -870,18 +915,36 @@ static inline void php(m65xx_t* const m) {
       set_abus(m, m->pc);
       break;
     case 2:
-      set_abus_dbus(m,0x100 | m->s--, m->p);
+      set_abus_dbus(m, 0x100 | m->s--, m->p);
       break;
     case 3:
       m->tcu = 0;
       m6502_fetch(m);
       break;
     default:
-      printf("Error: invalid cycle count for brk\n");
+      printf("Error: invalid cycle count for php\n");
       break;
   }
 }
+static inline void plp(m65xx_t* const m) {
+  switch (m->tcu) {
+    case 1:
+      set_abus(m, m->pc);
+      break;
+    case 2:
+      set_abus(m, 0x100 | m->s++);
+      break;
+    case 3:
+      set_abus(m, 0x100| m->s);
+      break;
+    case 4:
+      set_p(m, get_dbus(m));
 
+      m->tcu = 0;
+      m6502_fetch(m);
+      break;
+  }
+}
 // Branch instructions 
 
 static inline void bpl(m65xx_t* const m) {
@@ -942,9 +1005,25 @@ static inline void ora(m65xx_t* const m) {
   m->a |= get_dbus(m);
   set_nz(m, m->a);
 }
-static inline void bit(m65xx_t* const m);
+static inline void bit(m65xx_t* const m) {
+  uint8_t data = get_dbus(m);
 
-static inline void rol(m65xx_t* const m);
+  if((m->a & data) == 0) { m->p |= ZF; } else { m->p &= ~ZF; }
+  if(data & 0x80) { m->p |= NF; } else { m->p &= ~NF; }
+  if(data & 0x40) { m->p |= VF; } else { m->p &= ~VF; }
+}
+
+static inline void rol(m65xx_t* const m) {
+  uint8_t data = get_dbus(m);
+  bool cf = m->p & CF;
+
+  if(data & 0x80) { m->p |= CF; } else { m->p &= ~CF; }
+  data = ((data << 1) | cf) & 0xFF;
+  if(data & 0x80) { m->p |= NF; } else { m->p &= ~NF; }
+  if(data == 0) { m->p |= ZF; } else { m->p &= ~ZF; }
+
+  set_dbus(m, data);
+}
 static inline void ror(m65xx_t* const m);
 static inline void asl(m65xx_t* const m) {
   uint8_t data = get_dbus(m);
@@ -976,17 +1055,31 @@ static inline void sbc(m65xx_t* const m);
 
 static inline void slo(m65xx_t* const m) {
   uint8_t data = get_dbus(m);
+
   if((data & 0x80) >> 7) { m->p |= CF; } else { m->p &= ~CF; };
   data = (data << 1) & 0xFF;
   set_nz(m, data);
+
   m->a |= data;
   set_nz(m, m->a);
 }
 static inline void anc(m65xx_t* const m) {
   uint8_t data = get_dbus(m);
+
   m->a &= data;
   set_nz(m, m->a);
   if(m->a & 0x80) { m->p |= CF; } else { m->p &= ~CF; }
+}
+static inline void rla(m65xx_t* const m) {
+  uint8_t data = get_dbus(m);
+  bool cf = m->p & CF;
+
+  if(data & 0x80) { m->p |= CF; } else { m->p &= ~CF; }
+  data = ((data << 1) | cf) & 0xFF;
+  set_nz(m, data);
+
+  m->a &= data;
+  set_nz(m, m->a);
 }
 
 static inline void jam(m65xx_t* const m) {
@@ -1027,6 +1120,22 @@ m65xx_opcodes_t m6502_opcode_table[0x100] = {
   [0x1D] = { .mode = abxr, .instr = ora },
   [0x1E] = { .mode = abxm, .instr = asl },
   [0x1F] = { .mode = abxm, .instr = slo },
+  [0x20] = { .mode = jsr, .instr = impl },
+  [0x21] = { .mode = idxr, .instr = and },
+  [0x22] = { .mode = impl, .instr = jam },
+  [0x23] = { .mode = idxm, .instr = rla },
+  [0x24] = { .mode = zpgr, .instr = bit },
+  [0x25] = { .mode = zpgr, .instr = and },
+  [0x26] = { .mode = zpgm, .instr = rol },
+  [0x27] = { .mode = zpgm, .instr = rla },
+  [0x28] = { .mode = plp, .instr = impl },
+  [0x29] = { .mode = imme, .instr = and },
+  [0x2A] = { .mode = accu, .instr = rol },
+  [0x2B] = { .mode = imme, .instr = anc }, 
+  [0x2C] = { .mode = absr, .instr = bit },
+  [0x2D] = { .mode = absr, .instr = and },
+  [0x2E] = { .mode = absm, .instr = rol },
+  [0x2F] = { .mode = absm, .instr = rla },
   // ...
   [0xA9] = { .mode = imme, .instr = lda },
 };
@@ -1037,7 +1146,7 @@ void m65xx_init(m65xx_t* const m) {
   m->pins = 0;
   on(m, (SYNC | RW));
   m->a = m->x = m->y = m->s = m->p = m->tcu = 0;
-  m->ir = 0x1F;
+  m->ir = 0x2f;
   m->p |= 0x20;
   m->pc = m->ad = 0;
   m->bra = 0;
