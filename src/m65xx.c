@@ -814,7 +814,6 @@ static inline void idym(m65xx_t* const m) {
 
 // Interrupts
 
-
 static inline void brk(m65xx_t* const m) {
   switch (m->tcu) {
     case 1:
@@ -862,15 +861,15 @@ static inline void res(m65xx_t* const m);
 
 // Legal instructions 
 
-static inline void nop(m65xx_t* const m) {
-  (void) *m;
-}
+
+
+static inline void nop(m65xx_t* const m) { (void) *m; }
+
 
 // Clear/Set flags
 
-static inline void clc(m65xx_t* const m) {
-  m->p &= ~CF;
-}
+static inline void clc(m65xx_t* const m) { m->p &= ~CF; }
+
 
 // Jump instructions 
 
@@ -906,6 +905,7 @@ static inline void jsr(m65xx_t* const m) {
       break;
   }
 }
+
 
 // Stack instructions 
 
@@ -943,13 +943,20 @@ static inline void plp(m65xx_t* const m) {
       m->tcu = 0;
       m6502_fetch(m);
       break;
+    default:
+      printf("Error: invalid cycle count for plp\n");
+      break;
   }
 }
+
+
 // Branch instructions 
 
 static inline void bpl(m65xx_t* const m) {
   if(!(m->p & NF)) { m->bra = 1; } else { m->bra = 0; }
 }
+
+
 // Load, Store, Transfer
 
 static inline void lda(m65xx_t* const m) {
@@ -990,6 +997,7 @@ static inline void txs(m65xx_t* const m) {
 static inline void tya(m65xx_t* const m) {
   set_nz(m, m->a = m->y);
 }
+
 
 // Logical, Rotation instructions 
 
@@ -1052,6 +1060,8 @@ static inline void sbc(m65xx_t* const m);
 
 
 // Illegal/Undocumented instructions
+
+
 
 static inline void slo(m65xx_t* const m) {
   uint8_t data = get_dbus(m);
