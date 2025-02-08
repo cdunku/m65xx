@@ -56,6 +56,9 @@ static inline void m6502_fetch(m65xx_t* const m) {
 
 static inline void impl(m65xx_t* const m) {
   switch (m->tcu) {
+    case 1:
+      set_abus(m, m->pc);
+      break;
     case 2:
       m6502_opcode_table[m->ir].instr(m); 
 
@@ -69,11 +72,12 @@ static inline void impl(m65xx_t* const m) {
 }
 static inline void accu(m65xx_t* const m) {
   switch (m->tcu) {
+    case 1:
+      set_abus(m, m->pc);
+      break;
     case 2:
       set_dbus(m, m->a);
       m6502_opcode_table[m->ir].instr(m); 
-
-      // Execute Instruction 
       m->a = get_dbus(m);
 
       m->tcu = 0;
@@ -90,7 +94,6 @@ static inline void imme(m65xx_t* const m) {
       set_abus(m, m->pc++);
       break;
     case 2:
-      // Execute instruction
       m6502_opcode_table[m->ir].instr(m); 
 
       m->tcu = 0;
@@ -101,7 +104,33 @@ static inline void imme(m65xx_t* const m) {
       break;
   }
 }
-static inline void rela(m65xx_t* const m);
+static inline void rela(m65xx_t* const m) {
+  switch (m->tcu) {
+    case 1:
+      m6502_opcode_table[m->ir].instr(m);
+      set_abus(m, m->pc++);
+      if(!m->bra) { m->ad = m->pc; m->tcu += 2; }
+      break;
+    case 2:
+      uint8_t data = get_dbus(m);
+      m->ad = (uint16_t)(m->pc + (int8_t)data);
+      set_abus(m, m->pc);
+      if(m->adh == m->pch) { m->tcu++; }
+      break;
+    case 3:
+      set_abus(m, (m->pch << 8) | m->adl);
+      break;
+    case 4:
+      set_abus(m, m->pc = m->ad);
+
+      m->tcu = 0;
+      m6502_fetch(m);
+      break;
+    default:
+      printf("Error: invalid cycle count for relative\n");
+      break;
+  }
+}
 
 
 static inline void zpgr(m65xx_t* const m) {
@@ -113,7 +142,6 @@ static inline void zpgr(m65xx_t* const m) {
       set_abus(m, get_dbus(m));
       break;
     case 3:
-      // Execute instruction
       m6502_opcode_table[m->ir].instr(m); 
 
       m->tcu = 0;
@@ -133,8 +161,8 @@ static inline void zpgw(m65xx_t* const m) {
       set_abus(m, get_dbus(m));
       break;
     case 3:
-      // Execute instruction
       off(m, RW);
+      m6502_opcode_table[m->ir].instr(m); 
 
       m->tcu = 0;
       m6502_fetch(m);
@@ -163,7 +191,6 @@ static inline void zpgm(m65xx_t* const m) {
       off(m, RW);
       m6502_opcode_table[m->ir].instr(m); 
 
-
       m->tcu = 0;
       m6502_fetch(m);
       break;
@@ -186,7 +213,7 @@ static inline void zpxr(m65xx_t* const m) {
       set_abus(m, m->adl);
       break;
     case 4:
-      // Execute instruction 
+      m6502_opcode_table[m->ir].instr(m); 
 
       m->tcu = 0;
       m6502_fetch(m);
@@ -210,8 +237,8 @@ static inline void zpxw(m65xx_t* const m) {
       break;
     case 4:
       off(m, RW);
-      // Execute instruction 
-      
+      m6502_opcode_table[m->ir].instr(m); 
+ 
       m->tcu = 0;
       m6502_fetch(m);
       break;
@@ -237,7 +264,7 @@ static inline void zpxm(m65xx_t* const m) {
       break;
     case 5:
       off(m, RW);
-      // Execute instruction
+      m6502_opcode_table[m->ir].instr(m); 
       break;
     case 6:
       m->tcu = 0;
@@ -262,7 +289,7 @@ static inline void zpyr(m65xx_t* const m) {
       set_abus(m, m->adl);
       break;
     case 4:
-      // Execute instruction 
+      m6502_opcode_table[m->ir].instr(m); 
 
       m->tcu = 0;
       m6502_fetch(m);
@@ -286,7 +313,7 @@ static inline void zpyw(m65xx_t* const m) {
       break;
     case 4:
       off(m, RW);
-      // Execute instruction 
+      m6502_opcode_table[m->ir].instr(m);  
       
       m->tcu = 0;
       m6502_fetch(m);
@@ -311,7 +338,7 @@ static inline void absr(m65xx_t* const m) {
       set_abus(m, m->ad);
       break;
     case 4:
-      // Execute instruction
+      m6502_opcode_table[m->ir].instr(m); 
 
       m->tcu = 0;
       m6502_fetch(m);
@@ -335,7 +362,8 @@ static inline void absw(m65xx_t* const m) {
       set_abus(m, m->ad);
       break;
     case 4:
-      // Execute instruction
+      off(m, RW);
+      m6502_opcode_table[m->ir].instr(m); 
 
       m->tcu = 0;
       m6502_fetch(m);
@@ -363,7 +391,7 @@ static inline void absm(m65xx_t* const m) {
       break;
     case 5:
       off(m, RW);
-      // Execute instruction 
+      m6502_opcode_table[m->ir].instr(m); 
       break;
     case 6:
       m->tcu = 0;
@@ -388,13 +416,13 @@ static inline void abxr(m65xx_t* const m) {
       m->adh = get_dbus(m);
       if(m->adh != ((m->ad + m->x) >> 8)) {
         m->cpu_clock++;
-        set_abus(m, m->adl);
+        set_abus(m, m->ad);
         break;
       }
       set_abus(m, (m->adh << 8) | ((m->adl + m->x) & 0xFF));
       break;
     case 4:
-      // Execute instruction 
+      m6502_opcode_table[m->ir].instr(m); 
 
       m->tcu = 0;
       m6502_fetch(m);
@@ -422,7 +450,7 @@ static inline void abxw(m65xx_t* const m) {
       break;
     case 5:
       off(m, RW);
-      // Execute instruction 
+      m6502_opcode_table[m->ir].instr(m); 
 
       m->tcu = 0;
       m6502_fetch(m);
@@ -455,7 +483,7 @@ static inline void abxm(m65xx_t* const m) {
       break;
     case 7:
       off(m, RW);
-      // Execute instruction 
+      m6502_opcode_table[m->ir].instr(m); 
 
       m->tcu = 0;
       m6502_fetch(m);      
@@ -477,15 +505,17 @@ static inline void abyr(m65xx_t* const m) {
       break;
     case 3:
       m->adh = get_dbus(m);
-      if(m->adh != ((m->ad + m->y) >> 8)) {
-        m->cpu_clock++;
-        set_abus(m, m->adl);
+      if(((m->adl + m->y) & 0xFF00) != 0) {
+        set_abus(m, (m->ad & 0xFF00) | ((m->adl + m->y) & 0xFF));
         break;
       }
-      set_abus(m, (m->adh << 8) | ((m->adl + m->y) & 0xFF));
+      set_abus(m, m->ad + m->y);
       break;
     case 4:
-      // Execute instruction 
+      set_abus(m, m->ad + m->y);
+      break;
+    case 5:
+      m6502_opcode_table[m->ir].instr(m); 
 
       m->tcu = 0;
       m6502_fetch(m);
@@ -513,7 +543,7 @@ static inline void abyw(m65xx_t* const m) {
       break;
     case 5:
       off(m, RW);
-      // Execute instruction 
+      m6502_opcode_table[m->ir].instr(m); 
 
       m->tcu = 0;
       m6502_fetch(m);
@@ -546,7 +576,7 @@ static inline void idxr(m65xx_t* const m) {
       set_abus(m, m->ad);
       break;
     case 6:
-      // Execute instruction 
+      m6502_opcode_table[m->ir].instr(m);  
 
       m->tcu = 0;
       m6502_fetch(m);
@@ -579,13 +609,50 @@ static inline void idxw(m65xx_t* const m) {
       break;
     case 6:
       off(m, RW);
-      // Execute instruction 
+      m6502_opcode_table[m->ir].instr(m);  
 
       m->tcu = 0;
       m6502_fetch(m);
       break;
     default:
       printf("Error: invalid cycle count for indirect, x write\n");
+      break; 
+  }
+}
+static inline void idxm(m65xx_t* const m) {
+  switch (m->tcu) {
+    case 1:
+      set_abus(m, m->pc++);
+      break;
+    case 2:
+      m->adl = get_dbus(m);
+      set_abus(m, m->adl);
+      break;
+    case 3:
+      m->adl = (m->adl + m->x) & 0xFF;
+      set_abus(m, m->adl);
+      break;
+    case 4:
+      set_abus(m, (m->adl + 1) & 0xFF);
+      m->adl = get_dbus(m);
+      break;
+    case 5:
+      m->adh = get_dbus(m);
+      set_abus(m, m->ad);
+      break;
+    case 6:
+      off(m, RW);
+      break;
+    case 7:
+      off(m, RW);
+      m6502_opcode_table[m->ir].instr(m);  
+      break;
+    case 8:
+      m->tcu = 0;
+      m6502_fetch(m);
+      break;
+    default:
+      printf("Error: invalid cycle count for indirect, x read-modify-write\n");
       break; 
   }
 }
@@ -613,7 +680,7 @@ static inline void idyr(m65xx_t* const m) {
       set_abus(m, (m->adh << 8) | ((m->adl + m->y) & 0xFF));
       break;
     case 5:
-      // Execute instruction 
+      m6502_opcode_table[m->ir].instr(m); 
 
       m->tcu = 0;
       m6502_fetch(m);
@@ -644,7 +711,7 @@ static inline void idyw(m65xx_t* const m) {
       set_abus(m, m->ad + m->y);
 
       off(m, RW);
-      // Execute instruction
+      m6502_opcode_table[m->ir].instr(m); 
       break;
     case 6:
       m->tcu = 0;
@@ -655,7 +722,42 @@ static inline void idyw(m65xx_t* const m) {
       break; 
   }
 }
-
+static inline void idym(m65xx_t* const m) {
+  switch (m->tcu) {
+    case 1:
+      set_abus(m, m->pc++);
+      break;
+    case 2:
+      m->adl = get_dbus(m);
+      set_abus(m, m->adl);
+      break;
+    case 3:
+      set_abus(m, (m->adl + 1) & 0xFF);
+      m->adl = get_dbus(m);
+      break;
+    case 4:
+      m->adh = get_dbus(m);
+      set_abus(m, (m->adh << 8) | ((m->adl + m->y) & 0xFF));
+      break;
+    case 5:
+      set_abus(m, m->ad + m->y);
+      break;
+    case 6:
+      off(m, RW);
+      break;
+    case 7:
+      off(m, RW);
+      m6502_opcode_table[m->ir].instr(m);  
+      break;
+    case 8:
+      m->tcu = 0;
+      m6502_fetch(m);
+      break;
+    default:
+      printf("Error: invalid cycle count for indirect, y read-modify-write\n");
+      break; 
+  }
+}
 
 
 /*
@@ -685,13 +787,14 @@ static inline void brk(m65xx_t* const m) {
       break;
     case 4:
       off(m, RW);
-      set_abus_dbus(m, 0x100 | m->s--, m->p);
+      set_abus_dbus(m, 0x100 | m->s--, m->p | BF);
       break;
     case 5:
-      m->p |= IDF;
       set_abus(m, 0xFFFE);
       break;
     case 6:
+      m->p |= IDF;
+
       m->pcl = get_dbus(m);
       set_abus(m, 0xFFFF);
       break;
@@ -716,7 +819,37 @@ static inline void res(m65xx_t* const m);
 
 // Legal instructions 
 
+static inline void nop(m65xx_t* const m) {
+  (void) *m;
+}
+static inline void clc(m65xx_t* const m) {
+  m->p &= ~CF;
+}
+// Stack instructions 
 
+static inline void php(m65xx_t* const m) {
+  switch (m->tcu) {
+    case 1:
+      set_abus(m, m->pc);
+      break;
+    case 2:
+      set_abus_dbus(m,0x100 | m->s--, m->p);
+      break;
+    case 3:
+      m->tcu = 0;
+      m6502_fetch(m);
+      break;
+    default:
+      printf("Error: invalid cycle count for brk\n");
+      break;
+  }
+}
+
+// Branch instructions 
+
+static inline void bpl(m65xx_t* const m) {
+  if(!(m->p & NF)) { m->bra = 1; } else { m->bra = 0; }
+}
 // Load, Store, Transfer
 
 static inline void lda(m65xx_t* const m) {
@@ -758,6 +891,35 @@ static inline void tya(m65xx_t* const m) {
   set_nz(m, m->a = m->y);
 }
 
+// Logical, Rotation instructions 
+
+static inline void and(m65xx_t* const m) {
+  m->a &= get_dbus(m);
+  set_nz(m, m->a);
+}
+static inline void eor(m65xx_t* const m) {
+  m->a ^= get_dbus(m);
+  set_nz(m, m->a);
+}
+static inline void ora(m65xx_t* const m) {
+  m->a |= get_dbus(m);
+  set_nz(m, m->a);
+}
+static inline void bit(m65xx_t* const m);
+
+static inline void rol(m65xx_t* const m);
+static inline void ror(m65xx_t* const m);
+static inline void asl(m65xx_t* const m) {
+  uint8_t data = get_dbus(m);
+
+  if((data & 0x80) >> 7) { m->p |= CF; } else { m->p &= ~CF; };
+  data = (data << 1) & 0xFF;
+  set_nz(m, data);
+
+  set_dbus(m, data);
+}
+static inline void lsr(m65xx_t* const m);
+
 
 // Arithmethic, Increment/Decrement, Compare instructions
 
@@ -775,12 +937,53 @@ static inline void sbc(m65xx_t* const m);
 
 // Illegal/Undocumented instructions
 
+static inline void slo(m65xx_t* const m) {
+  uint8_t data = get_dbus(m);
+  if((data & 0x80) >> 7) { m->p |= CF; } else { m->p &= ~CF; };
+  data = (data << 1) & 0xFF;
+  set_nz(m, data);
+  m->a |= data;
+  set_nz(m, m->a);
+}
+static inline void anc(m65xx_t* const m) {
+  uint8_t data = get_dbus(m);
+  m->a &= data;
+  set_nz(m, m->a);
+  if(m->a & 0x80) { m->p |= CF; } else { m->p &= ~CF; }
+}
 
 static inline void jam(m65xx_t* const m) {
-  m->pc--;
+  set_dbus(m, 0xFF);
+  m->halt = 1;
 }
+
 m65xx_opcodes_t m6502_opcode_table[0x100] = {
   [0x00] = { .mode = brk, .instr = impl },
+  [0x01] = { .mode = idxr, .instr = ora },
+  [0x02] = { .mode = impl, .instr = jam },
+  [0x03] = { .mode = idxm, .instr = slo },
+  [0x04] = { .mode = zpgr, .instr = nop },
+  [0x05] = { .mode = zpgr, .instr = ora },
+  [0x06] = { .mode = zpgm, .instr = asl },
+  [0x07] = { .mode = zpgm, .instr = slo },
+  [0x08] = { .mode = php, .instr = impl },
+  [0x09] = { .mode = imme, .instr = ora },
+  [0x0A] = { .mode = accu, .instr = asl },
+  [0x0B] = { .mode = imme, .instr = anc },
+  [0x0C] = { .mode = absr, .instr = nop },
+  [0x0D] = { .mode = absr, .instr = ora },
+  [0x0E] = { .mode = absm, .instr = asl },
+  [0x0F] = { .mode = absm, .instr = slo },
+  [0x10] = { .mode = rela, .instr = bpl },
+  [0x11] = { .mode = idyr, .instr = ora },
+  [0x12] = { .mode = impl, .instr = jam },
+  [0x13] = { .mode = idym, .instr = slo },
+  [0x14] = { .mode = zpxr, .instr = nop },
+  [0x15] = { .mode = zpxr, .instr = ora },
+  [0x16] = { .mode = zpxm, .instr = asl },
+  [0x17] = { .mode = zpxm, .instr = slo }, 
+  [0x18] = { .mode = impl, .instr = clc },
+  [0x19] = { .mode = abyr, .instr = ora },
   // ...
   [0xA9] = { .mode = imme, .instr = lda },
 };
@@ -791,16 +994,19 @@ void m65xx_init(m65xx_t* const m) {
   m->pins = 0;
   on(m, (SYNC | RW));
   m->a = m->x = m->y = m->s = m->p = m->tcu = 0;
-  m->ir = 0x00;
+  m->ir = 0x19;
   m->p |= 0x20;
   m->pc = m->ad = 0;
-  m->pcl = m->ram[0xFFFC];
-  m->pch = m->ram[0xFFFD];
+  m->bra = 0;
+
+  m->halt = 0;
 }
 void m65xx_on(m65xx_t* const m);
 void m65xx_reset(m65xx_t* const m);
 
 static inline void m65xx_tick(m65xx_t* const m) {
+  if(m->halt) return;
+
   on(m, RW);
   // Check whether if Interrupt might occur
   if(m->pins & SYNC) {
@@ -808,7 +1014,7 @@ static inline void m65xx_tick(m65xx_t* const m) {
     off(m, SYNC);
     m->pc++;
   }
-  m->tcu += 1;
+  m->tcu++;
   // Call instruction/addressing mode 
   m6502_opcode_table[m->ir].mode(m);
 }

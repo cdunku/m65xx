@@ -53,11 +53,11 @@ typedef struct {
   uint16_t ir;
   union { struct { uint8_t pcl; uint8_t pch; }; uint16_t pc; };
   union { struct { uint8_t adl; uint8_t adh; }; uint16_t ad; };
-
+  bool bra;
   uint64_t cpu_clock;
 
   // nmi_edge holds the edge case value, nmi_handle executes a non-maskable interrupt.
-  bool nmi_edge, nmi_handle;
+  bool nmi_edge, nmi_handle, irq_pending, halt;
 
   bool first_reset;
 } m65xx_t;
