@@ -414,14 +414,17 @@ static inline void abxr(m65xx_t* const m) {
       break;
     case 3:
       m->adh = get_dbus(m);
-      if(m->adh != ((m->ad + m->x) >> 8)) {
-        m->cpu_clock++;
-        set_abus(m, m->ad);
+      if(((m->adl + m->x) & 0xFF00) != 0) {
+        set_abus(m, m->adh | ((m->adl + m->x) & 0xFF));
         break;
       }
-      set_abus(m, (m->adh << 8) | ((m->adl + m->x) & 0xFF));
+      set_abus(m, m->ad + m->x);
+      m->tcu++;
       break;
     case 4:
+      set_abus(m, m->ad + m->x);
+      break;
+    case 5:
       m6502_opcode_table[m->ir].instr(m); 
 
       m->tcu = 0;
@@ -506,10 +509,11 @@ static inline void abyr(m65xx_t* const m) {
     case 3:
       m->adh = get_dbus(m);
       if(((m->adl + m->y) & 0xFF00) != 0) {
-        set_abus(m, (m->ad & 0xFF00) | ((m->adl + m->y) & 0xFF));
+        set_abus(m, m->adh | ((m->adl + m->y) & 0xFF));
         break;
       }
       set_abus(m, m->ad + m->y);
+      m->tcu++;
       break;
     case 4:
       set_abus(m, m->ad + m->y);
@@ -550,6 +554,39 @@ static inline void abyw(m65xx_t* const m) {
       break;
     default:
       printf("Error: invalid cycle count for absolute, y write\n");
+      break; 
+  }
+}
+static inline void abym(m65xx_t* const m) {
+  switch (m->tcu) {
+    case 1:
+      set_abus(m, m->pc++);
+      break;
+    case 2:
+      m->adl = get_dbus(m);
+      set_abus(m, m->pc++);
+      break;
+    case 3:
+      m->adh = get_dbus(m);
+      break;
+    case 4:
+      set_abus(m, (m->adh << 8) | ((m->adl + m->y) & 0xFF));
+      break;
+    case 5:
+      set_abus(m, m->ad + m->y);
+      break;
+    case 6:
+      off(m, RW);
+      break;
+    case 7:
+      off(m, RW);
+      m6502_opcode_table[m->ir].instr(m); 
+
+      m->tcu = 0;
+      m6502_fetch(m);      
+      break;
+    default:
+      printf("Error: invalid cycle count for absolute, y read-modify-write\n");
       break; 
   }
 }
@@ -984,6 +1021,12 @@ m65xx_opcodes_t m6502_opcode_table[0x100] = {
   [0x17] = { .mode = zpxm, .instr = slo }, 
   [0x18] = { .mode = impl, .instr = clc },
   [0x19] = { .mode = abyr, .instr = ora },
+  [0x1A] = { .mode = impl, .instr = nop },
+  [0x1B] = { .mode = abym, .instr = slo },
+  [0x1C] = { .mode = abxr, .instr = nop },
+  [0x1D] = { .mode = abxr, .instr = ora },
+  [0x1E] = { .mode = abxm, .instr = asl },
+  [0x1F] = { .mode = abxm, .instr = slo },
   // ...
   [0xA9] = { .mode = imme, .instr = lda },
 };
@@ -994,7 +1037,7 @@ void m65xx_init(m65xx_t* const m) {
   m->pins = 0;
   on(m, (SYNC | RW));
   m->a = m->x = m->y = m->s = m->p = m->tcu = 0;
-  m->ir = 0x19;
+  m->ir = 0x1F;
   m->p |= 0x20;
   m->pc = m->ad = 0;
   m->bra = 0;
