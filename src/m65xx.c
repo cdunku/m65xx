@@ -869,6 +869,7 @@ static inline void nop(m65xx_t* const m) { (void) *m; }
 // Clear/Set flags
 
 static inline void clc(m65xx_t* const m) { m->p &= ~CF; }
+static inline void sec(m65xx_t* const m) { m->p |= CF; }
 
 
 // Jump instructions 
@@ -954,6 +955,9 @@ static inline void plp(m65xx_t* const m) {
 
 static inline void bpl(m65xx_t* const m) {
   if(!(m->p & NF)) { m->bra = 1; } else { m->bra = 0; }
+}
+static inline void bmi(m65xx_t* const m) {
+  if(m->p & NF) { m->bra = 1; } else { m->bra = 0; }
 }
 
 
@@ -1146,6 +1150,22 @@ m65xx_opcodes_t m6502_opcode_table[0x100] = {
   [0x2D] = { .mode = absr, .instr = and },
   [0x2E] = { .mode = absm, .instr = rol },
   [0x2F] = { .mode = absm, .instr = rla },
+  [0x30] = { .mode = rela, .instr = bmi },
+  [0x31] = { .mode = idyr, .instr = and },
+  [0x32] = { .mode = impl, .instr = jam },
+  [0x33] = { .mode = idym, .instr = rla },
+  [0x34] = { .mode = zpxr, .instr = nop },
+  [0x35] = { .mode = zpxr, .instr = and },
+  [0x36] = { .mode = zpxm, .instr = rol },
+  [0x37] = { .mode = zpxm, .instr = rla },
+  [0x38] = { .mode = impl, .instr = sec },
+  [0x39] = { .mode = abyr, .instr = and },
+  [0x3A] = { .mode = impl, .instr = nop },
+  [0x3B] = { .mode = abym, .instr = rla },
+  [0x3C] = { .mode = abxr, .instr = nop },
+  [0x3D] = { .mode = abxr, .instr = and },
+  [0x3E] = { .mode = abxm, .instr = rol },
+  [0x3F] = { .mode = abxm, .instr = rla },
   // ...
   [0xA9] = { .mode = imme, .instr = lda },
 };
@@ -1156,7 +1176,7 @@ void m65xx_init(m65xx_t* const m) {
   m->pins = 0;
   on(m, (SYNC | RW));
   m->a = m->x = m->y = m->s = m->p = m->tcu = 0;
-  m->ir = 0x2f;
+  m->ir = 0x3f;
   m->p |= 0x20;
   m->pc = m->ad = 0;
   m->bra = 0;
