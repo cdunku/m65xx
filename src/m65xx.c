@@ -950,6 +950,37 @@ static inline void plp(m65xx_t* const m) {
   }
 }
 
+static inline void rti(m65xx_t* const m) {
+  switch (m->tcu) {
+    case 1:
+      set_abus(m, m->pc);
+      break;
+    case 2:
+      set_abus(m, 0x100 | m->s++);
+      break;
+    case 3:
+      set_abus(m, 0x100 | m->s++);
+      break;
+    case 4:
+      // Sets the 5th (always set) and disables the BF flag if set when value of P is updated
+      m->p = (get_dbus(m) | 0x20) & (~BF);
+      set_abus(m, 0x100 | m->s++);
+      break;
+    case 5:
+      m->pcl = get_dbus(m);
+      set_abus(m, 0x100 | m->s);
+      break;
+    case 6:
+      m->pch = get_dbus(m);
+
+      m->tcu = 0;
+      m6502_fetch(m);
+      break;
+    default:
+      printf("Error: invalid cycle count for rti\n");
+      break;
+  }
+}
 
 // Branch instructions 
 
@@ -1166,6 +1197,7 @@ m65xx_opcodes_t m6502_opcode_table[0x100] = {
   [0x3D] = { .mode = abxr, .instr = and },
   [0x3E] = { .mode = abxm, .instr = rol },
   [0x3F] = { .mode = abxm, .instr = rla },
+  [0x40] = { .mode = rti, .instr = impl },
   // ...
   [0xA9] = { .mode = imme, .instr = lda },
 };
@@ -1176,7 +1208,7 @@ void m65xx_init(m65xx_t* const m) {
   m->pins = 0;
   on(m, (SYNC | RW));
   m->a = m->x = m->y = m->s = m->p = m->tcu = 0;
-  m->ir = 0x3f;
+  m->ir = 0x40;
   m->p |= 0x20;
   m->pc = m->ad = 0;
   m->bra = 0;
