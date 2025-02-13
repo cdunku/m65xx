@@ -4,12 +4,6 @@
 
 #include "m65xx.h"
 
-
-/*
- * NOTES> When creating a poll function for IRQ and NMI, create a list of opcodes that will either execute NMI or IRQ. NMI only occurs with implied instructions?????? idk i must check
- */
-
-
 /*
  *
  *
@@ -949,6 +943,23 @@ static inline void plp(m65xx_t* const m) {
       break;
   }
 }
+static inline void pha(m65xx_t* const m) {
+  switch (m->tcu) {
+    case 1:
+      set_abus(m, m->pc);
+      break;
+    case 2:
+      set_abus_dbus(m, 0x100 | m->s--, m->a);
+      break;
+    case 3:
+      m->tcu = 0;
+      m6502_fetch(m);
+      break;
+    default:
+      printf("Error: invalid cycle count for php\n");
+      break;
+  }
+}
 
 static inline void rti(m65xx_t* const m) {
   switch (m->tcu) {
@@ -1077,7 +1088,15 @@ static inline void asl(m65xx_t* const m) {
 
   set_dbus(m, data);
 }
-static inline void lsr(m65xx_t* const m);
+static inline void lsr(m65xx_t* const m) {
+  uint8_t data = get_dbus(m);
+
+  if(data & 0x1) { m->p |= CF; } else { m->p &= ~CF; }
+  data = (data >> 1) & 0xFF;
+  set_nz(m, data);
+
+  set_dbus(m, data);
+}
 
 
 // Arithmethic, Increment/Decrement, Compare instructions
@@ -1126,6 +1145,17 @@ static inline void rla(m65xx_t* const m) {
   m->a &= data;
   set_nz(m, m->a);
 }
+static inline void sre(m65xx_t* const m) {
+  uint8_t data = get_dbus(m);
+
+  if(data & 0x1) { m->p |= CF; } else { m->p &= ~CF; }
+  data >>= 1;
+  set_nz(m, data);
+
+  m->a ^= data;
+  set_nz(m, m->a);
+}
+
 
 static inline void jam(m65xx_t* const m) {
   set_dbus(m, 0xFF);
@@ -1198,6 +1228,14 @@ m65xx_opcodes_t m6502_opcode_table[0x100] = {
   [0x3E] = { .mode = abxm, .instr = rol },
   [0x3F] = { .mode = abxm, .instr = rla },
   [0x40] = { .mode = rti, .instr = impl },
+  [0x41] = { .mode = idxr, .instr = eor },
+  [0x42] = { .mode = impl, .instr = jam },
+  [0x43] = { .mode = idxm, .instr = sre },
+  [0x44] = { .mode = zpgr, .instr = nop },
+  [0x45] = { .mode = zpgr, .instr = eor },
+  [0x46] = { .mode = zpgm, .instr = lsr },
+  [0x47] = { .mode = zpgm, .instr = sre },
+  [0x48] = { .mode = pha, .instr = impl },
   // ...
   [0xA9] = { .mode = imme, .instr = lda },
 };
@@ -1208,7 +1246,7 @@ void m65xx_init(m65xx_t* const m) {
   m->pins = 0;
   on(m, (SYNC | RW));
   m->a = m->x = m->y = m->s = m->p = m->tcu = 0;
-  m->ir = 0x40;
+  m->ir = 0x48;
   m->p |= 0x20;
   m->pc = m->ad = 0;
   m->bra = 0;
