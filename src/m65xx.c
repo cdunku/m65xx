@@ -900,6 +900,24 @@ static inline void jsr(m65xx_t* const m) {
       break;
   }
 }
+static inline void abj(m65xx_t* const m) {
+  switch (m->tcu) {
+    case 1:
+      set_abus(m, m->pc++);
+      break;
+    case 2:
+      m->adl = get_dbus(m);
+      set_abus(m, m->pc++);
+      break;
+    case 3:
+      m->adh = get_dbus(m);
+      m->pc = m->ad;
+
+      m->tcu = 0;
+      m6502_fetch(m);
+      break;
+  }
+}
 
 
 // Stack instructions 
@@ -1156,6 +1174,16 @@ static inline void sre(m65xx_t* const m) {
   set_nz(m, m->a);
 }
 
+static inline void alr(m65xx_t* const m) {
+  uint8_t data = get_dbus(m);
+
+  m->a &= data;
+  set_nz(m, m->a);
+
+  if(m->a & 0x1) { m->p |= CF; } else { m->p &= ~CF; }
+  m->a = (m->a >> 1) & 0xFF;
+  set_nz(m, m->a);
+}
 
 static inline void jam(m65xx_t* const m) {
   set_dbus(m, 0xFF);
@@ -1236,6 +1264,13 @@ m65xx_opcodes_t m6502_opcode_table[0x100] = {
   [0x46] = { .mode = zpgm, .instr = lsr },
   [0x47] = { .mode = zpgm, .instr = sre },
   [0x48] = { .mode = pha, .instr = impl },
+  [0x49] = { .mode = imme, .instr = eor },
+  [0x4A] = { .mode = accu, .instr = lsr },
+  [0x4B] = { .mode = imme, .instr = alr },
+  [0x4C] = { .mode = abj, .instr = impl },
+  [0x4D] = { .mode = absr, .instr = eor },
+  [0x4E] = { .mode = absm, .instr = lsr },
+  [0x4F] = { .mode = absm, .instr = sre },
   // ...
   [0xA9] = { .mode = imme, .instr = lda },
 };
@@ -1246,7 +1281,7 @@ void m65xx_init(m65xx_t* const m) {
   m->pins = 0;
   on(m, (SYNC | RW));
   m->a = m->x = m->y = m->s = m->p = m->tcu = 0;
-  m->ir = 0x48;
+  m->ir = 0x4f;
   m->p |= 0x20;
   m->pc = m->ad = 0;
   m->bra = 0;
