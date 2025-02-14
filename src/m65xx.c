@@ -864,6 +864,7 @@ static inline void nop(m65xx_t* const m) { (void) *m; }
 
 static inline void clc(m65xx_t* const m) { m->p &= ~CF; }
 static inline void sec(m65xx_t* const m) { m->p |= CF; }
+static inline void cli(m65xx_t* const m) { m->p &= ~IDF; }
 
 
 // Jump instructions 
@@ -945,10 +946,10 @@ static inline void plp(m65xx_t* const m) {
       set_abus(m, m->pc);
       break;
     case 2:
-      set_abus(m, 0x100 | m->s++);
+      set_abus(m, 0x100 | m->s);
       break;
     case 3:
-      set_abus(m, 0x100| m->s);
+      set_abus(m, 0x100| ++m->s);
       break;
     case 4:
       set_p(m, get_dbus(m));
@@ -985,23 +986,22 @@ static inline void rti(m65xx_t* const m) {
       set_abus(m, m->pc);
       break;
     case 2:
-      set_abus(m, 0x100 | m->s++);
+      set_abus(m, 0x100 | ++m->s);
       break;
     case 3:
-      set_abus(m, 0x100 | m->s++);
-      break;
-    case 4:
       // Sets the 5th (always set) and disables the BF flag if set when value of P is updated
       m->p = (get_dbus(m) | 0x20) & (~BF);
-      set_abus(m, 0x100 | m->s++);
+      set_abus(m, 0x100 | ++m->s);
+      break;
+    case 4:
+      m->pcl = get_dbus(m);
+      set_abus(m, 0x100 | ++m->s);
       break;
     case 5:
-      m->pcl = get_dbus(m);
+      m->pch = get_dbus(m);
       set_abus(m, 0x100 | m->s);
       break;
     case 6:
-      m->pch = get_dbus(m);
-
       m->tcu = 0;
       m6502_fetch(m);
       break;
@@ -1010,6 +1010,35 @@ static inline void rti(m65xx_t* const m) {
       break;
   }
 }
+static inline void rts(m65xx_t* const m) {
+  switch (m->tcu) { 
+    case 1:
+      set_abus(m, m->pc++);
+      break;
+    case 2:
+      set_abus(m, 0x100 | m->s);
+      break;
+    case 3:
+      set_abus(m, 0x100 | ++m->s);
+      break;
+    case 4:
+      m->pcl = get_dbus(m);
+      set_abus(m, 0x100 | ++m->s);
+      break;
+    case 5:
+      m->pch = get_dbus(m);
+      set_abus(m, m->pc++);
+      break;
+    case 6:
+      m->tcu = 0;
+      m6502_fetch(m);
+      break;
+    default:
+      printf("Error: invalid cycle count for rts\n");
+      break;
+  }
+}
+
 
 // Branch instructions 
 
@@ -1019,8 +1048,24 @@ static inline void bpl(m65xx_t* const m) {
 static inline void bmi(m65xx_t* const m) {
   if(m->p & NF) { m->bra = 1; } else { m->bra = 0; }
 }
-
-
+static inline void bvc(m65xx_t* const m) {
+  if(!(m->p & VF)) { m->bra = 1; } else { m->bra = 0; }
+}
+static inline void bvs(m65xx_t* const m) {
+  if(!(m->p & VF)) { m->bra = 1; } else { m->bra = 0; }
+}
+static inline void bcc(m65xx_t* const m) {
+  if(!(m->p & CF)) { m->bra = 1; } else { m->bra = 0; }
+}
+static inline void bcs(m65xx_t* const m) {
+  if((m->p & CF)) { m->bra = 1; } else { m->bra = 0; }
+}
+static inline void bne(m65xx_t* const m) {
+  if(!(m->p & ZF)) { m->bra = 1; } else { m->bra = 0; }
+}
+static inline void beq(m65xx_t* const m) {
+  if((m->p & ZF)) { m->bra = 1; } else { m->bra = 0; }
+}
 // Load, Store, Transfer
 
 static inline void lda(m65xx_t* const m) {
@@ -1120,13 +1165,29 @@ static inline void lsr(m65xx_t* const m) {
 // Arithmethic, Increment/Decrement, Compare instructions
 
 static inline void adc(m65xx_t* const m) {
-  if(m->p & DF) {
+  uint8_t data = get_dbus(m);
+  uint16_t result;
 
+  if (m->p & DF) {  
+    result = (m->a & 0x0F) + (data & 0x0F) + (m->p & CF);
+    if (result > 0x09) { result += 0x06; }
+
+    if (result > 0x0F) { m->p |= CF; } else { m->p &= ~CF; }
+
+    result = (m->a & 0xF0) + (data & 0xF0) + ((m->p & CF) << 4) + (result & 0x0F);
+    if (result > 0x9F) { result += 0x60; }
+
+  } else {
+    result = m->a + data + (m->p & CF);
+    if (((m->a ^ result) & (data ^ result) & 0x80) != 0) { m->p |= VF; } else { m->p &= ~VF; }
   }
-  else {
-    uint16_t i_res = m->a + get_dbus(m); + (m->p & 1);
-  }
+
+  if (result > 0xFF) { m->p |= CF; } else { m->p &= ~CF; }
+
+  m->a = result & 0xFF;
+  set_nz(m, m->a);
 }
+
 static inline void sbc(m65xx_t* const m);
 
 
@@ -1271,6 +1332,25 @@ m65xx_opcodes_t m6502_opcode_table[0x100] = {
   [0x4D] = { .mode = absr, .instr = eor },
   [0x4E] = { .mode = absm, .instr = lsr },
   [0x4F] = { .mode = absm, .instr = sre },
+  [0x50] = { .mode = rela, .instr = bvc },
+  [0x51] = { .mode = idyr, .instr = eor },
+  [0x52] = { .mode = impl, .instr = jam },
+  [0x53] = { .mode = idym, .instr = sre },
+  [0x54] = { .mode = zpxr, .instr = nop },
+  [0x55] = { .mode = zpxr, .instr = eor },
+  [0x56] = { .mode = zpxm, .instr = lsr },
+  [0x57] = { .mode = zpxm, .instr = sre },
+  [0x58] = { .mode = impl, .instr = cli },
+  [0x59] = { .mode = abyr, .instr = eor },
+  [0x5A] = { .mode = impl, .instr = nop },
+  [0x5B] = { .mode = abym, .instr = sre },
+  [0x5C] = { .mode = abxr, .instr = nop },
+  [0x5D] = { .mode = abxr, .instr = eor },
+  [0x5E] = { .mode = abxm, .instr = lsr },
+  [0x5F] = { .mode = abxm, .instr = sre },
+  [0x60] = { .mode = rts, .instr = impl },
+  [0x61] = { .mode = idxr, .instr = adc },
+
   // ...
   [0xA9] = { .mode = imme, .instr = lda },
 };
@@ -1281,7 +1361,7 @@ void m65xx_init(m65xx_t* const m) {
   m->pins = 0;
   on(m, (SYNC | RW));
   m->a = m->x = m->y = m->s = m->p = m->tcu = 0;
-  m->ir = 0x4f;
+  m->ir = 0x61;
   m->p |= 0x20;
   m->pc = m->ad = 0;
   m->bra = 0;
