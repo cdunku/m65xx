@@ -113,7 +113,7 @@ void load_tomharte(m65xx_t* const m, tomharte_t* const t, const char *file) {
         if (!test_case) continue;
 
         const char *name = json_string_value(json_object_get(test_case, "name"));
-        printf("Running test: %s\n", name);
+        // printf("Running test: %s\n", name);
 
         json_t *initial = json_object_get(test_case, "initial");
         json_t *final = json_object_get(test_case, "final");
@@ -169,7 +169,7 @@ void load_tomharte(m65xx_t* const m, tomharte_t* const t, const char *file) {
             if (m->p  != t->p_)  printf("  P mismatch: expected %02X, got %02X\n", t->p_, m->p);
             failed++;
         } else {
-            printf("Test passed: %s\n", name);
+            // printf("Test passed: %s\n", name);
             passed++;
         }
     }

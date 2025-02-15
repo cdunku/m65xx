@@ -1141,7 +1141,9 @@ static inline void rol(m65xx_t* const m) {
 
   set_dbus(m, data);
 }
-static inline void ror(m65xx_t* const m);
+static inline void ror(m65xx_t* const m) {
+
+}
 static inline void asl(m65xx_t* const m) {
   uint8_t data = get_dbus(m);
 
@@ -1166,26 +1168,33 @@ static inline void lsr(m65xx_t* const m) {
 
 static inline void adc(m65xx_t* const m) {
   uint8_t data = get_dbus(m);
-  uint16_t result;
+  bool cf = m->p & CF;
 
   if (m->p & DF) {  
-    result = (m->a & 0x0F) + (data & 0x0F) + (m->p & CF);
-    if (result > 0x09) { result += 0x06; }
+    uint8_t al = (m->a & 0x0F) + (data & 0x0F) + cf;
+    if (al > 0x09) { al += 0x06; }
 
-    if (result > 0x0F) { m->p |= CF; } else { m->p &= ~CF; }
+    uint8_t ah = (m->a >> 4) + (data >> 4) + (al > 0x0F);
 
-    result = (m->a & 0xF0) + (data & 0xF0) + ((m->p & CF) << 4) + (result & 0x0F);
-    if (result > 0x9F) { result += 0x60; }
+    if(ah & 0x08) { m->p |= NF; } else { m->p &= ~NF; }
+    if(~(data ^ m->a) & ((ah << 4) ^ m->a) & 0x80) { m->p |= VF; } else { m->p &= ~VF; }
+    if((m->a + data + cf)== 0) { m->p |= ZF; } else { m->p &= ~ZF; }
 
-  } else {
-    result = m->a + data + (m->p & CF);
-    if (((m->a ^ result) & (data ^ result) & 0x80) != 0) { m->p |= VF; } else { m->p &= ~VF; }
+    if(ah > 0x09) { ah += 0x06; }
+    if(ah > 0x0F) { m->p |= CF; } else { m->p &= ~CF; }
+
+
+    m->a = (ah << 4) | (al & 0x0F);
+  } 
+  else {
+    uint16_t result = m->a + data + cf;
+
+    set_nz(m, result & 0xFF);
+    if(((m->a ^ result) & (data ^ result) & 0x80) != 0) { m->p |= VF; } else { m->p &= ~VF; }
+    if(result > 0xFF) { m->p |= CF; } else { m->p &= ~CF; }
+
+    m->a = result & 0xFF;
   }
-
-  if (result > 0xFF) { m->p |= CF; } else { m->p &= ~CF; }
-
-  m->a = result & 0xFF;
-  set_nz(m, m->a);
 }
 
 static inline void sbc(m65xx_t* const m);
@@ -1234,7 +1243,6 @@ static inline void sre(m65xx_t* const m) {
   m->a ^= data;
   set_nz(m, m->a);
 }
-
 static inline void alr(m65xx_t* const m) {
   uint8_t data = get_dbus(m);
 
@@ -1245,6 +1253,7 @@ static inline void alr(m65xx_t* const m) {
   m->a = (m->a >> 1) & 0xFF;
   set_nz(m, m->a);
 }
+static inline void rra(m65xx_t* const m);
 
 static inline void jam(m65xx_t* const m) {
   set_dbus(m, 0xFF);
@@ -1350,6 +1359,8 @@ m65xx_opcodes_t m6502_opcode_table[0x100] = {
   [0x5F] = { .mode = abxm, .instr = sre },
   [0x60] = { .mode = rts, .instr = impl },
   [0x61] = { .mode = idxr, .instr = adc },
+  [0x62] = { .mode = impl, .instr = jam },
+  [0x63] = { .mode = idxm, .instr = rra },
 
   // ...
   [0xA9] = { .mode = imme, .instr = lda },
