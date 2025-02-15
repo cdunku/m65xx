@@ -167,6 +167,7 @@ void load_tomharte(m65xx_t* const m, tomharte_t* const t, const char *file) {
             if (m->y  != t->y_)  printf("  Y mismatch: expected %02X, got %02X\n", t->y_, m->y);
             if (m->s  != t->s_)  printf("  S mismatch: expected %02X, got %02X\n", t->s_, m->s);
             if (m->p  != t->p_)  printf("  P mismatch: expected %02X, got %02X\n", t->p_, m->p);
+            printf("DF = %d\n", m->pins & DF);
             failed++;
         } else {
             // printf("Test passed: %s\n", name);

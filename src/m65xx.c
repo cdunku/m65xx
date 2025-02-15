@@ -1142,7 +1142,14 @@ static inline void rol(m65xx_t* const m) {
   set_dbus(m, data);
 }
 static inline void ror(m65xx_t* const m) {
+  uint8_t data = get_dbus(m);
+  bool cf = m->p & CF;
 
+  if(data & 0x1) { m->p |= CF; } else { m->p &= ~CF; }
+  data = (data >> 1) | (cf << 7);
+  set_nz(m, data);
+
+  set_dbus(m, data);
 }
 static inline void asl(m65xx_t* const m) {
   uint8_t data = get_dbus(m);
@@ -1170,7 +1177,7 @@ static inline void adc(m65xx_t* const m) {
   uint8_t data = get_dbus(m);
   bool cf = m->p & CF;
 
-  if (m->p & DF) {  
+  if(m->p & DF) {  
     uint8_t al = (m->a & 0x0F) + (data & 0x0F) + cf;
     if (al > 0x09) { al += 0x06; }
 
@@ -1253,7 +1260,44 @@ static inline void alr(m65xx_t* const m) {
   m->a = (m->a >> 1) & 0xFF;
   set_nz(m, m->a);
 }
-static inline void rra(m65xx_t* const m);
+static inline void rra(m65xx_t* const m) {
+  uint8_t data = get_dbus(m);
+  bool cf = m->p & CF;
+
+  if(data & 0x1) { m->p |= CF; } else { m->p &= ~CF; }
+  data = (data >> 1) | (cf << 7);
+
+  set_nz(m, data);
+
+  // Store the value of carry after ROR
+  cf = m->p & CF;
+
+  if(m->p & DF) {  
+    uint8_t al = (m->a & 0x0F) + (data & 0x0F) + cf;
+    if (al > 0x09) { al += 0x06; }
+
+    uint8_t ah = (m->a >> 4) + (data >> 4) + (al > 0x0F);
+
+    if(ah & 0x08) { m->p |= NF; } else { m->p &= ~NF; }
+    if(~(data ^ m->a) & ((ah << 4) ^ m->a) & 0x80) { m->p |= VF; } else { m->p &= ~VF; }
+    if((m->a + data + cf)== 0) { m->p |= ZF; } else { m->p &= ~ZF; }
+
+    if(ah > 0x09) { ah += 0x06; }
+    if(ah > 0x0F) { m->p |= CF; } else { m->p &= ~CF; }
+
+
+    m->a = (ah << 4) | (al & 0x0F);
+  } 
+  else {
+    uint16_t result = m->a + data + cf;
+
+    set_nz(m, result & 0xFF);
+    if(((m->a ^ result) & (data ^ result) & 0x80) != 0) { m->p |= VF; } else { m->p &= ~VF; }
+    if(result > 0xFF) { m->p |= CF; } else { m->p &= ~CF; }
+
+    m->a = result & 0xFF;
+  }
+}
 
 static inline void jam(m65xx_t* const m) {
   set_dbus(m, 0xFF);
