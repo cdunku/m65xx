@@ -1177,7 +1177,7 @@ static inline void adc(m65xx_t* const m) {
   uint8_t data = get_dbus(m);
   bool cf = m->p & CF;
 
-  if(m->p & DF) {  
+  if(m->p & DF) { 
     uint8_t al = (m->a & 0x0F) + (data & 0x0F) + cf;
     if (al > 0x09) { al += 0x06; }
 
@@ -1185,11 +1185,11 @@ static inline void adc(m65xx_t* const m) {
 
     if(ah & 0x08) { m->p |= NF; } else { m->p &= ~NF; }
     if(~(data ^ m->a) & ((ah << 4) ^ m->a) & 0x80) { m->p |= VF; } else { m->p &= ~VF; }
-    if((m->a + data + cf)== 0) { m->p |= ZF; } else { m->p &= ~ZF; }
 
     if(ah > 0x09) { ah += 0x06; }
     if(ah > 0x0F) { m->p |= CF; } else { m->p &= ~CF; }
 
+    if((m->a + data + cf)== 0) { m->p |= ZF; } else { m->p &= ~ZF; }
 
     m->a = (ah << 4) | (al & 0x0F);
   } 
@@ -1203,6 +1203,7 @@ static inline void adc(m65xx_t* const m) {
     m->a = result & 0xFF;
   }
 }
+
 
 static inline void sbc(m65xx_t* const m);
 
@@ -1405,7 +1406,8 @@ m65xx_opcodes_t m6502_opcode_table[0x100] = {
   [0x61] = { .mode = idxr, .instr = adc },
   [0x62] = { .mode = impl, .instr = jam },
   [0x63] = { .mode = idxm, .instr = rra },
-
+  [0x64] = { .mode = zpgr, .instr = nop },
+  [0x65] = { .mode = zpgr, .instr = adc },
   // ...
   [0xA9] = { .mode = imme, .instr = lda },
 };
@@ -1416,7 +1418,7 @@ void m65xx_init(m65xx_t* const m) {
   m->pins = 0;
   on(m, (SYNC | RW));
   m->a = m->x = m->y = m->s = m->p = m->tcu = 0;
-  m->ir = 0x61;
+  m->ir = 0x65;
   m->p |= 0x20;
   m->pc = m->ad = 0;
   m->bra = 0;

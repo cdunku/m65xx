@@ -60,6 +60,8 @@ typedef struct {
   bool nmi_edge, nmi_handle, irq_pending, halt;
 
   bool first_reset;
+
+  bool debug;
 } m65xx_t;
 
 typedef struct { void (*mode)(m65xx_t*); void (*instr)(m65xx_t*); } m65xx_opcodes_t;

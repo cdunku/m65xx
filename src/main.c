@@ -154,20 +154,21 @@ void load_tomharte(m65xx_t* const m, tomharte_t* const t, const char *file) {
                 }
             }
         }
-
         // Execute one CPU cycle
         do { m65xx_run(m); } while (!(m->pins & SYNC));
 
+        m->debug = 0;
         // Compare final state
         if (m->pc != t->pc_ || m->a != t->a_ || m->x != t->x_ || m->y != t->y_ || m->s != t->s_ || m->p != t->p_) {
             printf("Test failed: %s\n", name);
+            m->debug = 1;
             if (m->pc != t->pc_) printf("  PC mismatch: expected %04X, got %04X\n", t->pc_, m->pc);
             if (m->a  != t->a_)  printf("  A mismatch: expected %02X, got %02X\n", t->a_, m->a);
             if (m->x  != t->x_)  printf("  X mismatch: expected %02X, got %02X\n", t->x_, m->x);
             if (m->y  != t->y_)  printf("  Y mismatch: expected %02X, got %02X\n", t->y_, m->y);
             if (m->s  != t->s_)  printf("  S mismatch: expected %02X, got %02X\n", t->s_, m->s);
             if (m->p  != t->p_)  printf("  P mismatch: expected %02X, got %02X\n", t->p_, m->p);
-            printf("DF = %d\n", m->pins & DF);
+            //printf("DF = %d\n", m->pins & DF);
             failed++;
         } else {
             // printf("Test passed: %s\n", name);
@@ -185,7 +186,7 @@ int main(void) {
     tomharte_t t;
 
     printf("Starting 6502 test...\n");
-    load_tomharte(&m, &t, "tests/6502/v1/61.json");
+    load_tomharte(&m, &t, "tests/6502/v1/65.json");
   
 
     printf("Test completed!\n");
