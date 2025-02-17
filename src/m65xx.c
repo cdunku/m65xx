@@ -1418,7 +1418,7 @@ void m65xx_init(m65xx_t* const m) {
   m->pins = 0;
   on(m, (SYNC | RW));
   m->a = m->x = m->y = m->s = m->p = m->tcu = 0;
-  m->ir = 0x65;
+  m->ir = 0x61;
   m->p |= 0x20;
   m->pc = m->ad = 0;
   m->bra = 0;
