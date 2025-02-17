@@ -979,6 +979,29 @@ static inline void pha(m65xx_t* const m) {
       break;
   }
 }
+static inline void pla(m65xx_t* const m) {
+  switch (m->tcu) {
+    case 1:
+      set_abus(m, m->pc);
+      break;
+    case 2:
+      set_abus(m, 0x100 | m->s);
+      break;
+    case 3:
+      set_abus(m, 0x100| ++m->s);
+      break;
+    case 4:
+      m->a = get_dbus(m);
+      set_nz(m, m->a);
+
+      m->tcu = 0;
+      m6502_fetch(m);
+      break;
+    default:
+      printf("Error: invalid cycle count for pla\n");
+      break;
+  }
+}
 
 static inline void rti(m65xx_t* const m) {
   switch (m->tcu) {
@@ -1299,6 +1322,20 @@ static inline void rra(m65xx_t* const m) {
     m->a = result & 0xFF;
   }
 }
+static inline void arr(m65xx_t* const m) {
+  uint8_t data = get_dbus(m);
+
+  m->a &= data;
+  set_nz(m, m->a);
+
+  bool cf = m->p & CF;
+
+  if(m->a & 0x1) { m->p |= CF; } else { m->p &= ~CF; }
+  m->a = (m->a >> 1) | (cf << 7);
+  set_nz(m, m->a);
+  if((m->a >> 6) & 0x1) { m->p |= CF; } else { m->p &= ~CF; }
+  if((m->a >> 6) ^ (m->a >> 5) & 1) { m->p |= VF; } else { m->p &= ~VF; }
+}
 
 static inline void jam(m65xx_t* const m) {
   set_dbus(m, 0xFF);
@@ -1408,6 +1445,12 @@ m65xx_opcodes_t m6502_opcode_table[0x100] = {
   [0x63] = { .mode = idxm, .instr = rra },
   [0x64] = { .mode = zpgr, .instr = nop },
   [0x65] = { .mode = zpgr, .instr = adc },
+  [0x66] = { .mode = zpgm, .instr = ror },
+  [0x67] = { .mode = zpgm, .instr = rra },
+  [0x68] = { .mode = pla, .instr = impl },
+  [0x69] = { .mode = imme, .instr = adc },
+  [0x6A] = { .mode = accu, .instr = ror },
+  [0x6B] = { .mode = imme, .instr = arr },
   // ...
   [0xA9] = { .mode = imme, .instr = lda },
 };
@@ -1418,7 +1461,7 @@ void m65xx_init(m65xx_t* const m) {
   m->pins = 0;
   on(m, (SYNC | RW));
   m->a = m->x = m->y = m->s = m->p = m->tcu = 0;
-  m->ir = 0x61;
+  m->ir = 0x6b;
   m->p |= 0x20;
   m->pc = m->ad = 0;
   m->bra = 0;

@@ -113,7 +113,7 @@ void load_tomharte(m65xx_t* const m, tomharte_t* const t, const char *file) {
         if (!test_case) continue;
 
         const char *name = json_string_value(json_object_get(test_case, "name"));
-        // printf("Running test: %s\n", name);
+        printf("Running test: %s\n", name);
 
         json_t *initial = json_object_get(test_case, "initial");
         json_t *final = json_object_get(test_case, "final");
@@ -186,7 +186,7 @@ int main(void) {
     tomharte_t t;
 
     printf("Starting 6502 test...\n");
-    load_tomharte(&m, &t, "tests/6502/v1/61.json");
+    load_tomharte(&m, &t, "tests/6502/v1/6b.json");
   
 
     printf("Test completed!\n");
