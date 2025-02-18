@@ -1212,7 +1212,7 @@ static inline void adc(m65xx_t* const m) {
     if(ah > 0x09) { ah += 0x06; }
     if(ah > 0x0F) { m->p |= CF; } else { m->p &= ~CF; }
 
-    if((m->a + data + cf)== 0) { m->p |= ZF; } else { m->p &= ~ZF; }
+    if(((m->a + data + cf) & 0xFF) == 0) { m->p |= ZF; } else { m->p &= ~ZF; }
 
     m->a = (ah << 4) | (al & 0x0F);
   } 
@@ -1304,7 +1304,7 @@ static inline void rra(m65xx_t* const m) {
 
     if(ah & 0x08) { m->p |= NF; } else { m->p &= ~NF; }
     if(~(data ^ m->a) & ((ah << 4) ^ m->a) & 0x80) { m->p |= VF; } else { m->p &= ~VF; }
-    if((m->a + data + cf)== 0) { m->p |= ZF; } else { m->p &= ~ZF; }
+    if(((m->a + data + cf) & 0xFF) == 0) { m->p |= ZF; } else { m->p &= ~ZF; }
 
     if(ah > 0x09) { ah += 0x06; }
     if(ah > 0x0F) { m->p |= CF; } else { m->p &= ~CF; }
@@ -1461,7 +1461,7 @@ void m65xx_init(m65xx_t* const m) {
   m->pins = 0;
   on(m, (SYNC | RW));
   m->a = m->x = m->y = m->s = m->p = m->tcu = 0;
-  m->ir = 0x6b;
+  m->ir = 0x6a;
   m->p |= 0x20;
   m->pc = m->ad = 0;
   m->bra = 0;
@@ -1472,7 +1472,7 @@ void m65xx_on(m65xx_t* const m);
 void m65xx_reset(m65xx_t* const m);
 
 static inline void m65xx_tick(m65xx_t* const m) {
-  if(m->halt) return;
+  if(m->halt) { return; }
 
   on(m, RW);
   // Check whether if Interrupt might occur
