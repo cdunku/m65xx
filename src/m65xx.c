@@ -1158,7 +1158,9 @@ static inline void rol(m65xx_t* const m) {
   bool cf = m->p & CF;
 
   if(data & 0x80) { m->p |= CF; } else { m->p &= ~CF; }
+
   data = ((data << 1) | cf) & 0xFF;
+
   if(data & 0x80) { m->p |= NF; } else { m->p &= ~NF; }
   if(data == 0) { m->p |= ZF; } else { m->p &= ~ZF; }
 
@@ -1169,6 +1171,7 @@ static inline void ror(m65xx_t* const m) {
   bool cf = m->p & CF;
 
   if(data & 0x1) { m->p |= CF; } else { m->p &= ~CF; }
+
   data = (data >> 1) | (cf << 7);
   set_nz(m, data);
 
@@ -1177,7 +1180,8 @@ static inline void ror(m65xx_t* const m) {
 static inline void asl(m65xx_t* const m) {
   uint8_t data = get_dbus(m);
 
-  if((data & 0x80) >> 7) { m->p |= CF; } else { m->p &= ~CF; };
+  if((data & 0x80) >> 7) { m->p |= CF; } else { m->p &= ~CF; }
+
   data = (data << 1) & 0xFF;
   set_nz(m, data);
 
@@ -1187,6 +1191,7 @@ static inline void lsr(m65xx_t* const m) {
   uint8_t data = get_dbus(m);
 
   if(data & 0x1) { m->p |= CF; } else { m->p &= ~CF; }
+
   data = (data >> 1) & 0xFF;
   set_nz(m, data);
 
@@ -1326,16 +1331,25 @@ static inline void arr(m65xx_t* const m) {
   uint8_t data = get_dbus(m);
 
   m->a &= data;
-  set_nz(m, m->a);
-
+  uint8_t a_ = m->a;
   bool cf = m->p & CF;
 
-  if(m->a & 0x1) { m->p |= CF; } else { m->p &= ~CF; }
   m->a = (m->a >> 1) | (cf << 7);
   set_nz(m, m->a);
-  if((m->a >> 6) & 0x1) { m->p |= CF; } else { m->p &= ~CF; }
-  if((m->a >> 6) ^ (m->a >> 5) & 1) { m->p |= VF; } else { m->p &= ~VF; }
+
+  if (m->p & DF) {
+    if ((a_ & 0x0F) + (a_ & 0x01) > 5) { m->a = ((m->a + 0x06) & 0x0F) | (m->a & 0xF0); }
+
+    if((m->a ^ (m->a << 1)) & VF) { m->p |= VF; } else { m->p &= ~VF; }
+    if((a_ & 0xF0) + (a_ & 0x10) > 0x50) { m->p |= CF; } else { m->p &= ~CF; }
+    
+    if (m->p & CF) { m->a += 0x60; }
+  } else {
+    if((m->a >> 6) & 1) { m->p |= CF; } else { m->p &= ~CF; }
+    if((m->a ^ (m->a << 1)) & 0x40) { m->p |= VF; } else { m->p &= ~VF; }
+  }
 }
+
 
 static inline void jam(m65xx_t* const m) {
   set_dbus(m, 0xFF);
@@ -1461,7 +1475,7 @@ void m65xx_init(m65xx_t* const m) {
   m->pins = 0;
   on(m, (SYNC | RW));
   m->a = m->x = m->y = m->s = m->p = m->tcu = 0;
-  m->ir = 0x6a;
+  m->ir = 0x6b;
   m->p |= 0x20;
   m->pc = m->ad = 0;
   m->bra = 0;
