@@ -865,6 +865,7 @@ static inline void nop(m65xx_t* const m) { (void) *m; }
 static inline void clc(m65xx_t* const m) { m->p &= ~CF; }
 static inline void sec(m65xx_t* const m) { m->p |= CF; }
 static inline void cli(m65xx_t* const m) { m->p &= ~IDF; }
+static inline void sei(m65xx_t* const m) { m->p |= IDF; }
 
 
 // Jump instructions 
@@ -917,9 +918,40 @@ static inline void abj(m65xx_t* const m) {
       m->tcu = 0;
       m6502_fetch(m);
       break;
+    default:
+      printf("Error: invalid cycle count for absolute jump\n");
+      break;
   }
 }
+static inline void inj(m65xx_t* const m) {
+  switch (m->tcu) {
+    case 1:
+      set_abus(m, m->pc++);
+      break;
+    case 2:
+      m->adl = get_dbus(m);
+      set_abus(m, m->pc++);
+      break;
+    case 3:
+      m->adh = get_dbus(m);
+      set_abus(m, m->ad);
+      break;
+    case 4:
+      set_abus(m, (m->adh << 8) | ((m->adl + 1) & 0xFF));
+      m->adl = get_dbus(m);
+      break;
+    case 5:
+      m->adh = get_dbus(m);
+      m->pc = m->ad;
 
+      m->tcu = 0;
+      m6502_fetch(m);
+      break;
+    default:
+      printf("Error: invalid cycle count for indirect jump\n");
+      break;
+  }
+}
 
 // Stack instructions 
 
@@ -1075,7 +1107,7 @@ static inline void bvc(m65xx_t* const m) {
   if(!(m->p & VF)) { m->bra = 1; } else { m->bra = 0; }
 }
 static inline void bvs(m65xx_t* const m) {
-  if(!(m->p & VF)) { m->bra = 1; } else { m->bra = 0; }
+  if(m->p & VF) { m->bra = 1; } else { m->bra = 0; }
 }
 static inline void bcc(m65xx_t* const m) {
   if(!(m->p & CF)) { m->bra = 1; } else { m->bra = 0; }
@@ -1350,7 +1382,9 @@ static inline void arr(m65xx_t* const m) {
   }
 }
 
-
+static inline void sax(m65xx_t* const m) {
+  set_dbus(m, m->a & m->x);
+}
 static inline void jam(m65xx_t* const m) {
   set_dbus(m, 0xFF);
   m->halt = 1;
@@ -1465,6 +1499,30 @@ m65xx_opcodes_t m6502_opcode_table[0x100] = {
   [0x69] = { .mode = imme, .instr = adc },
   [0x6A] = { .mode = accu, .instr = ror },
   [0x6B] = { .mode = imme, .instr = arr },
+  [0x6C] = { .mode = inj, .instr = impl },
+  [0x6D] = { .mode = absr, .instr = adc },
+  [0x6E] = { .mode = absm, .instr = ror },
+  [0x6F] = { .mode = absm, .instr = rra },
+  [0x70] = { .mode = rela, .instr = bvs },
+  [0x71] = { .mode = idyr, .instr = adc },
+  [0x72] = { .mode = impl, .instr = jam },
+  [0x73] = { .mode = idym, .instr = rra },
+  [0x74] = { .mode = zpxr, .instr = nop },
+  [0x75] = { .mode = zpxr, .instr = adc },
+  [0x76] = { .mode = zpxm, .instr = ror },
+  [0x77] = { .mode = zpxm, .instr = rra },
+  [0x78] = { .mode = impl, .instr = sei },
+  [0x79] = { .mode = abyr, .instr = adc },
+  [0x7A] = { .mode = impl, .instr = nop },
+  [0x7B] = { .mode = abym, .instr = rra },
+  [0x7C] = { .mode = abxr, .instr = nop },
+  [0x7D] = { .mode = abxr, .instr = adc },
+  [0x7E] = { .mode = abxm, .instr = ror },
+  [0x7F] = { .mode = abxm, .instr = rra },
+  [0x80] = { .mode = imme, .instr = nop },
+  [0x81] = { .mode = idxw, .instr = sta },
+  [0x82] = { .mode = imme, .instr = nop },
+  [0x83] = { .mode = idxr, .instr = sax },
   // ...
   [0xA9] = { .mode = imme, .instr = lda },
 };
@@ -1475,7 +1533,7 @@ void m65xx_init(m65xx_t* const m) {
   m->pins = 0;
   on(m, (SYNC | RW));
   m->a = m->x = m->y = m->s = m->p = m->tcu = 0;
-  m->ir = 0x6b;
+  m->ir = 0x83;
   m->p |= 0x20;
   m->pc = m->ad = 0;
   m->bra = 0;
