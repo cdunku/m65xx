@@ -159,11 +159,11 @@ static inline void zpgw(m65xx_t* const m) {
       break;
     case 2:
       set_abus(m, get_dbus(m));
-      break;
-    case 3:
+
       off(m, RW);
       m6502_opcode_table[m->ir].instr(m); 
-
+      break;
+    case 3:
       m->tcu = 0;
       m6502_fetch(m);
       break;
@@ -181,16 +181,13 @@ static inline void zpgm(m65xx_t* const m) {
       set_abus(m, get_dbus(m));
       break;
     case 3:
-      // Reads from memory 
+      off(m, RW);
       break;
     case 4:
-      // Dummy write
-      off(m, RW);
-      break;
-    case 5:
       off(m, RW);
       m6502_opcode_table[m->ir].instr(m); 
-
+      break;
+    case 5:
       m->tcu = 0;
       m6502_fetch(m);
       break;
@@ -234,11 +231,11 @@ static inline void zpxw(m65xx_t* const m) {
     case 3:
       m->adl = (m->adl + m->x) & 0xFF;
       set_abus(m, m->adl);
+
+      off(m, RW);
+      m6502_opcode_table[m->ir].instr(m);
       break;
     case 4:
-      off(m, RW);
-      m6502_opcode_table[m->ir].instr(m); 
- 
       m->tcu = 0;
       m6502_fetch(m);
       break;
@@ -310,11 +307,11 @@ static inline void zpyw(m65xx_t* const m) {
     case 3:
       m->adl = (m->adl + m->y) & 0xFF;
       set_abus(m, m->adl);
-      break;
-    case 4:
+
       off(m, RW);
       m6502_opcode_table[m->ir].instr(m);  
-      
+      break;
+    case 4:
       m->tcu = 0;
       m6502_fetch(m);
       break;
@@ -360,11 +357,11 @@ static inline void absw(m65xx_t* const m) {
     case 3:
       m->adh = get_dbus(m);
       set_abus(m, m->ad);
-      break;
-    case 4:
+
       off(m, RW);
       m6502_opcode_table[m->ir].instr(m); 
-
+      break;
+    case 4:
       m->tcu = 0;
       m6502_fetch(m);
       break;
@@ -373,6 +370,7 @@ static inline void absw(m65xx_t* const m) {
       break; 
   }
 }
+
 static inline void absm(m65xx_t* const m) {
   switch (m->tcu) {
     case 1:
@@ -450,11 +448,11 @@ static inline void abxw(m65xx_t* const m) {
       break;
     case 4:
       set_abus(m, m->ad + m->x);
-      break;
-    case 5:
+
       off(m, RW);
       m6502_opcode_table[m->ir].instr(m); 
-
+      break;
+    case 5:
       m->tcu = 0;
       m6502_fetch(m);
       break;
@@ -474,20 +472,19 @@ static inline void abxm(m65xx_t* const m) {
       break;
     case 3:
       m->adh = get_dbus(m);
-      break;
-    case 4:
       set_abus(m, (m->adh << 8) | ((m->adl + m->x) & 0xFF));
       break;
+    case 4:
+      set_abus(m, (m->ad + m->x) & 0xFFFF);
+      break;
     case 5:
-      set_abus(m, m->ad + m->x);
+      off(m, RW);
       break;
     case 6:
       off(m, RW);
+      m6502_opcode_table[m->ir].instr(m); 
       break;
     case 7:
-      off(m, RW);
-      m6502_opcode_table[m->ir].instr(m); 
-
       m->tcu = 0;
       m6502_fetch(m);      
       break;
@@ -544,11 +541,11 @@ static inline void abyw(m65xx_t* const m) {
       break;
     case 4:
       set_abus(m, m->ad + m->y);
-      break;
-    case 5:
+
       off(m, RW);
       m6502_opcode_table[m->ir].instr(m); 
-
+      break;
+    case 5:
       m->tcu = 0;
       m6502_fetch(m);
       break;
@@ -568,20 +565,19 @@ static inline void abym(m65xx_t* const m) {
       break;
     case 3:
       m->adh = get_dbus(m);
-      break;
-    case 4:
       set_abus(m, (m->adh << 8) | ((m->adl + m->y) & 0xFF));
       break;
-    case 5:
+    case 4:
       set_abus(m, m->ad + m->y);
+      break;
+    case 5:
+      off(m, RW);
       break;
     case 6:
       off(m, RW);
+      m6502_opcode_table[m->ir].instr(m);
       break;
     case 7:
-      off(m, RW);
-      m6502_opcode_table[m->ir].instr(m); 
-
       m->tcu = 0;
       m6502_fetch(m);      
       break;
@@ -643,11 +639,11 @@ static inline void idxw(m65xx_t* const m) {
     case 5:
       m->adh = get_dbus(m);
       set_abus(m, m->ad);
-      break;
-    case 6:
+
       off(m, RW);
       m6502_opcode_table[m->ir].instr(m);  
-
+      break;
+    case 6:
       m->tcu = 0;
       m6502_fetch(m);
       break;
@@ -866,6 +862,9 @@ static inline void clc(m65xx_t* const m) { m->p &= ~CF; }
 static inline void sec(m65xx_t* const m) { m->p |= CF; }
 static inline void cli(m65xx_t* const m) { m->p &= ~IDF; }
 static inline void sei(m65xx_t* const m) { m->p |= IDF; }
+static inline void clv(m65xx_t* const m) { m->p &= ~VF; }
+static inline void cld(m65xx_t* const m) { m->p &= ~DF; }
+static inline void sed(m65xx_t* const m) { m->p |= DF; }
 
 
 // Jump instructions 
@@ -961,7 +960,8 @@ static inline void php(m65xx_t* const m) {
       set_abus(m, m->pc);
       break;
     case 2:
-      set_abus_dbus(m, 0x100 | m->s--, m->p);
+      off(m, RW);
+      set_abus_dbus(m, 0x100 | m->s--, (m->p | BF));
       break;
     case 3:
       m->tcu = 0;
@@ -1000,6 +1000,7 @@ static inline void pha(m65xx_t* const m) {
       set_abus(m, m->pc);
       break;
     case 2:
+      off(m, RW);
       set_abus_dbus(m, 0x100 | m->s--, m->a);
       break;
     case 3:
@@ -1136,6 +1137,7 @@ static inline void ldy(m65xx_t* const m) {
 static inline void sta(m65xx_t* const m) {
   set_dbus(m, m->a);
 }
+
 static inline void stx(m65xx_t* const m) {
   set_dbus(m, m->x);
 }
@@ -1263,11 +1265,73 @@ static inline void adc(m65xx_t* const m) {
     m->a = result & 0xFF;
   }
 }
+static inline void sbc(m65xx_t* const m) {
+  uint8_t data = get_dbus(m);
+  uint16_t result;
+  bool cf = m->p & CF;
 
+  if(m->p & DF) {
+    result = m->a - data - !cf;
 
-static inline void sbc(m65xx_t* const m);
+    uint8_t al = (m->a & 0x0F) - (data & 0x0F) - !cf;
+    if(al & 0x80) { al -= 0x06; }
 
+    uint8_t ah = (m->a >> 4) - (data >> 4) - (al >> 7);
 
+    set_nz(m, result & 0xFF);
+    if((m->a ^ data) & (m->a ^ result) & 0x80) { m->p |= VF; } else { m->p &= ~VF; }
+    if(!(result > 0xFF)) { m->p |= CF; } else { m->p &= ~CF; }
+
+    if(ah & 0x80) { ah -= 0x06; }
+    
+    m->a = (ah << 4) | (al & 0x0F);
+  }
+  else {
+    result = m->a - data - !cf;
+
+    set_nz(m, result & 0xFF);
+    if((m->a ^ data) & (m->a ^ result) & 0x80) { m->p |= VF; } else { m->p &= ~VF; }
+    if(!(result > 0xFF)) { m->p |= CF; } else { m->p &= ~CF; }
+
+    m->a = result & 0xFF;
+  }
+}
+
+static inline void inc(m65xx_t* const m) {
+  uint8_t data = get_dbus(m);
+  data++;
+  set_nz(m, data);
+
+  set_dbus(m, data);
+} 
+static inline void iny(m65xx_t* const m) { set_nz(m, ++m->y); }
+static inline void inx(m65xx_t* const m) { set_nz(m, ++m->x); }
+
+static inline void dey(m65xx_t* const m) { set_nz(m, --m->y); }
+static inline void dex(m65xx_t* const m) { set_nz(m, --m->x); }
+static inline void dec(m65xx_t* const m) {
+  uint8_t data = get_dbus(m);
+  data--;
+  set_nz(m, data);
+
+  set_dbus(m, data);
+}
+
+static inline void cmp(m65xx_t* const m) {
+  uint16_t data = m->a - get_dbus(m);
+  set_nz(m, data & 0xFF);
+  if(!((data >> 8) & 0x1)) { m->p |= CF; } else { m->p &= ~CF; }
+}
+static inline void cpy(m65xx_t* const m) {
+  uint16_t data = m->y - get_dbus(m);
+  set_nz(m, data & 0xFF);
+  if(!((data >> 8) & 0x1)) { m->p |= CF; } else { m->p &= ~CF; }
+}
+static inline void cpx(m65xx_t* const m) {
+  uint16_t data = m->x - get_dbus(m);
+  set_nz(m, data & 0xFF);
+  if(!((data >> 8) & 0x1)) { m->p |= CF; } else { m->p &= ~CF; }
+}
 
 // Illegal/Undocumented instructions
 
@@ -1278,7 +1342,8 @@ static inline void slo(m65xx_t* const m) {
 
   if((data & 0x80) >> 7) { m->p |= CF; } else { m->p &= ~CF; };
   data = (data << 1) & 0xFF;
-  set_nz(m, data);
+
+  set_dbus(m, data);
 
   m->a |= data;
   set_nz(m, m->a);
@@ -1296,7 +1361,8 @@ static inline void rla(m65xx_t* const m) {
 
   if(data & 0x80) { m->p |= CF; } else { m->p &= ~CF; }
   data = ((data << 1) | cf) & 0xFF;
-  set_nz(m, data);
+
+  set_dbus(m, data);
 
   m->a &= data;
   set_nz(m, m->a);
@@ -1307,6 +1373,8 @@ static inline void sre(m65xx_t* const m) {
   if(data & 0x1) { m->p |= CF; } else { m->p &= ~CF; }
   data >>= 1;
   set_nz(m, data);
+
+  set_dbus(m, data);
 
   m->a ^= data;
   set_nz(m, m->a);
@@ -1327,8 +1395,9 @@ static inline void rra(m65xx_t* const m) {
 
   if(data & 0x1) { m->p |= CF; } else { m->p &= ~CF; }
   data = (data >> 1) | (cf << 7);
-
   set_nz(m, data);
+
+  set_dbus(m, data);
 
   // Store the value of carry after ROR
   cf = m->p & CF;
@@ -1385,10 +1454,116 @@ static inline void arr(m65xx_t* const m) {
 static inline void sax(m65xx_t* const m) {
   set_dbus(m, m->a & m->x);
 }
+static inline void ane(m65xx_t* const m) {
+  m->a = (m->a | 0xEE) & m->x & get_dbus(m);
+  set_nz(m, m->a);
+}
+
+static inline void sha(m65xx_t* const m) {
+  if(m->adh != (get_abus(m) >> 8)) {
+    set_dbus(m, m->a & m->x & m->adh);
+    set_abus(m, (get_dbus(m) << 8) | m->adl);
+  }
+  else {
+    set_dbus(m, m->a & m->x & ((m->adh + 1) & 0xFF));
+  }
+}
+static inline void tas(m65xx_t* const m) {
+  m->s = m->a & m->x;
+  if(m->adh != (get_abus(m) >> 8)) {
+    set_dbus(m, m->s & m->adh);
+    set_abus(m, (get_dbus(m) << 8) | m->adl);
+  }
+  else {
+    set_dbus(m, m->s & (m->adh + 1) & 0xFF);
+  }
+}
+static inline void shy(m65xx_t* const m) {
+  if(m->adh != (get_abus(m) >> 8)) {
+    set_dbus(m, m->adh = m->y & m->x & m->adh); 
+  }
+  else {
+    set_dbus(m, m->adh = m->y & m->x & (m->adh + 1) & 0xFF);
+  }
+}
+static inline void shx(m65xx_t* const m) {
+  if(m->adh != (get_abus(m) >> 8)) {
+    set_dbus(m, m->adh = m->x & m->adh);
+  }
+  else {
+     set_dbus(m, m->x & (m->adh + 1));
+  }
+}
+
+static inline void lax(m65xx_t* const m) {
+  set_nz(m, m->a = m->x = get_dbus(m));
+}
+static inline void lxa(m65xx_t* const m) {
+  set_nz(m, m->a = m->x = (m->a | 0xEE) & get_dbus(m));
+}
+static inline void las(m65xx_t* const m) {
+  set_nz(m, m->x = m->s = m->a = get_dbus(m) & m->s);
+}
+
+static inline void dcp(m65xx_t* const m) {
+  uint8_t data = get_dbus(m);
+  data--;
+
+  set_dbus(m, data);
+
+  uint16_t result = m->a - data;
+  set_nz(m, result & 0xFF);
+  if(!((result >> 8) & 0x1)) { m->p |= CF; } else { m->p &= ~CF; }
+}
+static inline void isc(m65xx_t* const m) {
+  uint8_t data = get_dbus(m);
+  data++;
+
+  set_dbus(m, data);
+
+  uint16_t result;
+  bool cf = m->p & CF;
+
+  if(m->p & DF) {
+    result = m->a - data - !cf;
+
+    uint8_t al = (m->a & 0x0F) - (data & 0x0F) - !cf;
+    if(al & 0x80) { al -= 0x06; }
+
+    uint8_t ah = (m->a >> 4) - (data >> 4) - (al >> 7);
+
+    set_nz(m, result & 0xFF);
+    if((m->a ^ data) & (m->a ^ result) & 0x80) { m->p |= VF; } else { m->p &= ~VF; }
+    if(!(result > 0xFF)) { m->p |= CF; } else { m->p &= ~CF; }
+
+    if(ah & 0x80) { ah -= 0x06; }
+    
+    m->a = (ah << 4) | (al & 0x0F);
+  }
+  else {
+    result = m->a - data - !cf;
+
+    set_nz(m, result & 0xFF);
+    if((m->a ^ data) & (m->a ^ result) & 0x80) { m->p |= VF; } else { m->p &= ~VF; }
+    if(!(result > 0xFF)) { m->p |= CF; } else { m->p &= ~CF; }
+
+    m->a = result & 0xFF;
+  }
+}
+
+
 static inline void jam(m65xx_t* const m) {
   set_dbus(m, 0xFF);
   m->halt = 1;
 }
+
+/*
+ *
+ *
+ * Opcode table(s)
+ *
+ *
+*/
 
 m65xx_opcodes_t m6502_opcode_table[0x100] = {
   [0x00] = { .mode = brk, .instr = impl },
@@ -1522,24 +1697,147 @@ m65xx_opcodes_t m6502_opcode_table[0x100] = {
   [0x80] = { .mode = imme, .instr = nop },
   [0x81] = { .mode = idxw, .instr = sta },
   [0x82] = { .mode = imme, .instr = nop },
-  [0x83] = { .mode = idxr, .instr = sax },
-  // ...
+  [0x83] = { .mode = idxw, .instr = sax }, 
+  [0x84] = { .mode = zpgw, .instr = sty },
+  [0x85] = { .mode = zpgw, .instr = sta },
+  [0x86] = { .mode = zpgw, .instr = stx },
+  [0x87] = { .mode = zpgw, .instr = sax },
+  [0x88] = { .mode = impl, .instr = dey },
+  [0x89] = { .mode = imme, .instr = nop },
+  [0x8A] = { .mode = impl, .instr = txa },
+  [0x8B] = { .mode = imme, .instr = ane },
+  [0x8C] = { .mode = absw, .instr = sty },
+  [0x8D] = { .mode = absw, .instr = sta },
+  [0x8E] = { .mode = absw, .instr = stx },
+  [0x8F] = { .mode = absw, .instr = sax },
+  [0x90] = { .mode = rela, .instr = bcc },
+  [0x91] = { .mode = idyw, .instr = sta },
+  [0x92] = { .mode = impl, .instr = jam },
+  [0x93] = { .mode = idyw, .instr = sha }, // ?
+  [0x94] = { .mode = zpxw, .instr = sty },
+  [0x95] = { .mode = zpxw, .instr = sta },
+  [0x96] = { .mode = zpyw, .instr = stx },
+  [0x97] = { .mode = zpyw, .instr = sax },
+  [0x98] = { .mode = impl, .instr = tya },
+  [0x99] = { .mode = abyw, .instr = sta },
+  [0x9A] = { .mode = impl, .instr = txs },
+//  [0x9B] = { .mode = abyw, .instr = tas }, // ?
+//  [0x9C] = { .mode = abxw, .instr = shy }, // ?
+  [0x9D] = { .mode = abxw, .instr = sta },
+//  [0x9E] = { .mode = abyw, .instr = shx },
+//  [0x9F] = { .mode = abyw, .instr = sha }, // ?
+  [0xA0] = { .mode = imme, .instr = ldy },
+  [0xA1] = { .mode = idxr, .instr = lda },
+  [0xA2] = { .mode = imme, .instr = ldx },
+  [0xA3] = { .mode = idxr, .instr = lax },
+  [0xA4] = { .mode = zpgr, .instr = ldy },
+  [0xA5] = { .mode = zpgr, .instr = lda },
+  [0xA6] = { .mode = zpgr, .instr = ldx },
+  [0xA7] = { .mode = zpgr, .instr = lax },
+  [0xA8] = { .mode = impl, .instr = tay },
   [0xA9] = { .mode = imme, .instr = lda },
-};
+  [0xAA] = { .mode = impl, .instr = tax },
+  [0xAB] = { .mode = imme, .instr = lxa },
+  [0xAC] = { .mode = absr, .instr = ldy },
+  [0xAD] = { .mode = absr, .instr = lda },
+  [0xAE] = { .mode = absr, .instr = ldx },
+  [0xAF] = { .mode = absr, .instr = lax },
+  [0xB0] = { .mode = rela, .instr = bcs },
+  [0xB1] = { .mode = idyr, .instr = lda },
+  [0xB2] = { .mode = impl, .instr = jam },
+  [0xB3] = { .mode = idyr, .instr = lax },
+  [0xB4] = { .mode = zpxr, .instr = ldy },
+  [0xB5] = { .mode = zpxr, .instr = lda },
+  [0xB6] = { .mode = zpyr, .instr = ldx },
+  [0xB7] = { .mode = zpyr, .instr = lax },
+  [0xB8] = { .mode = impl, .instr = clv },
+  [0xB9] = { .mode = abyr, .instr = lda },
+  [0xBA] = { .mode = impl, .instr = tsx },
+  [0xBB] = { .mode = abyr, .instr = las },
+  [0xBC] = { .mode = abxr, .instr = ldy },
+  [0xBD] = { .mode = abxr, .instr = lda },
+  [0xBE] = { .mode = abyr, .instr = ldx },
+  [0xBF] = { .mode = abyr, .instr = lax },
+  [0xC0] = { .mode = imme, .instr = cpy },
+  [0xC1] = { .mode = idxr, .instr = cmp },
+  [0xC2] = { .mode = imme, .instr = nop },
+  [0xC3] = { .mode = idxm, .instr = dcp },
+  [0xC4] = { .mode = zpgr, .instr = cpy },
+  [0xC5] = { .mode = zpgr, .instr = cmp },
+  [0xC6] = { .mode = zpgm, .instr = dec },
+  [0xC7] = { .mode = zpgm, .instr = dcp },
+  [0xC8] = { .mode = impl, .instr = iny },
+  [0xC9] = { .mode = imme, .instr = cmp },
+  [0xCA] = { .mode = impl, .instr = dex },
+//  [0xCB] = { .mode = imme, .instr = sbx },
+  [0xCC] = { .mode = absr, .instr = cpy },
+  [0xCD] = { .mode = absr, .instr = cmp },
+  [0xCE] = { .mode = absm, .instr = dec },
+  [0xCF] = { .mode = absm, .instr = dcp },
+  [0xD0] = { .mode = rela, .instr = bne },
+  [0xD1] = { .mode = idyr, .instr = cmp },
+  [0xD2] = { .mode = impl, .instr = jam },
+  [0xD3] = { .mode = idym, .instr = dcp },
+  [0xD4] = { .mode = zpxr, .instr = nop },
+  [0xD5] = { .mode = zpxr, .instr = cmp },
+  [0xD6] = { .mode = zpxm, .instr = dec },
+  [0xD7] = { .mode = zpxm, .instr = dcp },
+  [0xD8] = { .mode = impl, .instr = cld },
+  [0xD9] = { .mode = abyr, .instr = cmp },
+  [0xDA] = { .mode = impl, .instr = nop },
+  [0xDB] = { .mode = abym, .instr = dcp },
+  [0xDC] = { .mode = abxr, .instr = nop },
+  [0xDD] = { .mode = abxr, .instr = cmp },
+  [0xDE] = { .mode = abxm, .instr = dec },
+  [0xDF] = { .mode = abxm, .instr = dcp },
+  [0xE0] = { .mode = imme, .instr = cpx },
+  [0xE1] = { .mode = idxr, .instr = sbc },
+  [0xE2] = { .mode = imme, .instr = nop },
+  [0xE3] = { .mode = idxm, .instr = isc },
+  [0xE4] = { .mode = zpgr, .instr = cpx },
+  [0xE5] = { .mode = zpgr, .instr = sbc },
+  [0xE6] = { .mode = zpgm, .instr = inc },
+  [0xE7] = { .mode = zpgm, .instr = isc },
+  [0xE8] = { .mode = impl, .instr = inx },
+  [0xE9] = { .mode = imme, .instr = sbc },
+  [0xEA] = { .mode = impl, .instr = nop },
+  [0xEB] = { .mode = imme, .instr = sbc },
+  [0xEC] = { .mode = absr, .instr = cpx },
+  [0xED] = { .mode = absr, .instr = sbc },
+  [0xEE] = { .mode = absm, .instr = inc },
+  [0xEF] = { .mode = absm, .instr = isc },
+  [0xF0] = { .mode = rela, .instr = beq },
+  [0xF1] = { .mode = idyr, .instr = sbc },
+  [0xF2] = { .mode = impl, .instr = jam },
+  [0xF3] = { .mode = idym, .instr = isc },
+  [0xF4] = { .mode = zpxr, .instr = nop },
+  [0xF5] = { .mode = zpxr, .instr = sbc },
+  [0xF6] = { .mode = zpxm, .instr = inc },
+  [0xF7] = { .mode = zpxm, .instr = isc },
+  [0xF8] = { .mode = impl, .instr = sed },
+  [0xF9] = { .mode = abyr, .instr = sbc },
+  [0xFA] = { .mode = impl, .instr = nop },
+  [0xFB] = { .mode = abym, .instr = isc },
+  [0xFC] = { .mode = abxr, .instr = nop },
+  [0xFD] = { .mode = abxr, .instr = sbc },
+  [0xFE] = { .mode = abxm, .instr = inc },
+  [0xFF] = { .mode = abxm, .instr = isc },
+}; 
 
-
+/*
 void m65xx_init(m65xx_t* const m) {
   memset(m->ram, 0, 0x10000);
   m->pins = 0;
   on(m, (SYNC | RW));
   m->a = m->x = m->y = m->s = m->p = m->tcu = 0;
-  m->ir = 0x83;
+  m->ir = 0x0a;
   m->p |= 0x20;
   m->pc = m->ad = 0;
   m->bra = 0;
 
   m->halt = 0;
 }
+*/
 void m65xx_on(m65xx_t* const m);
 void m65xx_reset(m65xx_t* const m);
 
@@ -1554,6 +1852,7 @@ static inline void m65xx_tick(m65xx_t* const m) {
     m->pc++;
   }
   m->tcu++;
+  m->cpu_clock++;
   // Call instruction/addressing mode 
   m6502_opcode_table[m->ir].mode(m);
 }
