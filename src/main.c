@@ -130,7 +130,7 @@ void m65xx_init(m65xx_t* const m) {
   m->pins = 0;
   m->pins |= (SYNC | RW);
   m->a = m->x = m->y = m->s = m->p = m->tcu = 0;
-  m->ir = 0x93;
+  m->ir = 0xcb;
   m->p |= 0x20;
   m->pc = m->ad = 0;
   m->bra = 0;
@@ -143,7 +143,7 @@ int main(void) {
     tomharte_t t;
 
     printf("Starting 6502 test...\n");
-    load_tomharte(&m, &t, "tests/6502/v1/93.json");
+    load_tomharte(&m, &t, "tests/6502/v1/cb.json");
 
     printf("Test completed!\n");
     return 0;

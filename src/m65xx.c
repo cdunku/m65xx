@@ -1461,17 +1461,17 @@ static inline void ane(m65xx_t* const m) {
 
 static inline void sha(m65xx_t* const m) {
   if(m->adh != (get_abus(m) >> 8)) {
-    set_dbus(m, m->a & m->x & m->adh);
+    set_dbus(m, m->a & m->x & m->adh & 0xFF);
     set_abus(m, (get_dbus(m) << 8) | m->adl);
   }
   else {
-    set_dbus(m, m->a & m->x & ((m->adh + 1) & 0xFF));
+    set_dbus(m, m->a & m->x & (m->adh + 1) & 0xFF);
   }
 }
 static inline void tas(m65xx_t* const m) {
   m->s = m->a & m->x;
   if(m->adh != (get_abus(m) >> 8)) {
-    set_dbus(m, m->s & m->adh);
+    set_dbus(m, m->s & m->adh & 0xFF);
     set_abus(m, (get_dbus(m) << 8) | m->adl);
   }
   else {
@@ -1480,19 +1480,27 @@ static inline void tas(m65xx_t* const m) {
 }
 static inline void shy(m65xx_t* const m) {
   if(m->adh != (get_abus(m) >> 8)) {
-    set_dbus(m, m->adh = m->y & m->x & m->adh); 
+    set_dbus(m, m->y & m->adh & 0xFF);
+    set_abus(m, (get_dbus(m) << 8) | m->adl);
   }
   else {
-    set_dbus(m, m->adh = m->y & m->x & (m->adh + 1) & 0xFF);
+    set_dbus(m, m->y & (m->adh + 1) & 0xFF);
   }
 }
 static inline void shx(m65xx_t* const m) {
   if(m->adh != (get_abus(m) >> 8)) {
-    set_dbus(m, m->adh = m->x & m->adh);
+    set_dbus(m, m->x & m->adh & 0xFF);
   }
   else {
-     set_dbus(m, m->x & (m->adh + 1));
+     set_dbus(m, m->x & (m->adh + 1) & 0xFF);
   }
+}
+static inline void sbx(m65xx_t* const m) {
+  m->x &= m->a;
+  uint16_t data = m->x - get_dbus(m);
+  m->x = data & 0xFF;
+  if(!((data >> 8) & 0x1)) { m->p |= CF; } else { m->p &= ~CF; }
+  set_nz(m, m->x);
 }
 
 static inline void lax(m65xx_t* const m) {
@@ -1721,11 +1729,11 @@ m65xx_opcodes_t m6502_opcode_table[0x100] = {
   [0x98] = { .mode = impl, .instr = tya },
   [0x99] = { .mode = abyw, .instr = sta },
   [0x9A] = { .mode = impl, .instr = txs },
-//  [0x9B] = { .mode = abyw, .instr = tas }, // ?
-//  [0x9C] = { .mode = abxw, .instr = shy }, // ?
+  [0x9B] = { .mode = abyw, .instr = tas }, // ?
+  [0x9C] = { .mode = abxw, .instr = shy }, // ?
   [0x9D] = { .mode = abxw, .instr = sta },
-//  [0x9E] = { .mode = abyw, .instr = shx },
-//  [0x9F] = { .mode = abyw, .instr = sha }, // ?
+  [0x9E] = { .mode = abyw, .instr = shx }, // ?
+  [0x9F] = { .mode = abyw, .instr = sha }, // ?
   [0xA0] = { .mode = imme, .instr = ldy },
   [0xA1] = { .mode = idxr, .instr = lda },
   [0xA2] = { .mode = imme, .instr = ldx },
@@ -1769,7 +1777,7 @@ m65xx_opcodes_t m6502_opcode_table[0x100] = {
   [0xC8] = { .mode = impl, .instr = iny },
   [0xC9] = { .mode = imme, .instr = cmp },
   [0xCA] = { .mode = impl, .instr = dex },
-//  [0xCB] = { .mode = imme, .instr = sbx },
+  [0xCB] = { .mode = imme, .instr = sbx },
   [0xCC] = { .mode = absr, .instr = cpy },
   [0xCD] = { .mode = absr, .instr = cmp },
   [0xCE] = { .mode = absm, .instr = dec },
