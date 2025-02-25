@@ -125,17 +125,80 @@ void load_tomharte(m65xx_t* const m, tomharte_t* const t, const char *file) {
     json_decref(root);
 }
 
+
+static int load_file(m65xx_t* const m, const char *file, uint16_t addr) {
+  FILE *f = fopen(file, "rb");
+  if(f == NULL) {
+    fprintf(stderr, "Error: file [%s] could not be opened\n", file);
+    return 1;
+  }
+  fseek(f, 0, SEEK_END);
+  size_t size = ftell(f);
+  rewind(f);
+
+  if(size + addr > 0x10000) {
+    fprintf(stderr, "Error: file [%s] cannot be fit into memory\n", file);
+    fclose(f);
+    return 1;
+  }
+
+  size_t result = fread(&m->ram[addr], sizeof(uint8_t), size, f);
+  if(result != size) {
+    fprintf(stderr, "Error: file size not equivalent for [%s]", file);
+    fclose(f);
+    return 1;
+  }
+
+  fclose(f);
+  return 0;
+}
+
+static inline uint8_t rb(m65xx_t* const m, uint16_t addr) {
+  return m->ram[addr];
+}
+static inline void wb(m65xx_t* const m, uint16_t addr, uint8_t data) {
+  m->ram[addr] = data;
+}
+
 void m65xx_init(m65xx_t* const m) {
-  memset(m->ram, 0, 0x10000);
+//  memset(m->ram, 0, 0x10000);
   m->pins = 0;
   m->pins |= (SYNC | RW);
   m->a = m->x = m->y = m->s = m->p = m->tcu = 0;
   m->ir = 0xcb;
   m->p |= 0x20;
-  m->pc = m->ad = 0;
+  m->ad = 0;
+  m->pcl = rb(m, 0xFFFC);
+  m->pch = rb(m, 0xFFFD);
   m->bra = 0;
 
   m->halt = 0;
+}
+
+
+
+static int allsuiteasm(m65xx_t* const m) {
+  memset(m->ram, 0, 0x10000);
+
+  load_file(m, "tests/AllSuiteA.bin", 0x4000);
+
+  m65xx_init(m);
+
+  while(true) {
+    do { m65xx_run(m); } while (!(m->pins & SYNC));
+
+    if(m->pc == 0x45C0) {
+      if(rb(m, 0x210) == 0xFF) {
+        printf("AllSuiteASM passed!\n");
+        break;
+      }
+      else {
+        fprintf(stderr, "AllSuiteASM failed!\n");
+        break;
+      }
+    }
+  }
+  return 0;
 }
 
 int main(void) {
@@ -143,8 +206,9 @@ int main(void) {
     tomharte_t t;
 
     printf("Starting 6502 test...\n");
-    load_tomharte(&m, &t, "tests/6502/v1/cb.json");
+    // load_tomharte(&m, &t, "tests/6502/v1/cb.json");
 
+    allsuiteasm(&m);
     printf("Test completed!\n");
     return 0;
 }
