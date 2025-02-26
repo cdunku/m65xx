@@ -1832,20 +1832,30 @@ m65xx_opcodes_t m6502_opcode_table[0x100] = {
   [0xFF] = { .mode = abxm, .instr = isc },
 }; 
 
-/*
+static inline uint8_t rb(m65xx_t* const m, uint16_t addr) {
+  return m->ram[addr];
+}
+static inline void wb(m65xx_t* const m, uint16_t addr, uint8_t data) {
+  m->ram[addr] = data;
+}
+
 void m65xx_init(m65xx_t* const m) {
-  memset(m->ram, 0, 0x10000);
+//  memset(m->ram, 0, 0x10000);
   m->pins = 0;
-  on(m, (SYNC | RW));
-  m->a = m->x = m->y = m->s = m->p = m->tcu = 0;
-  m->ir = 0x0a;
+  m->pins |= (SYNC | RW);
+  m->pc = m->a = m->x = m->y = m->p = m->tcu = 0;
+  m->s = 0xFD;
   m->p |= 0x20;
-  m->pc = m->ad = 0;
+  m->ad = 0;
+  m->pcl = rb(m, 0xFFFC);
+  m->pch = rb(m, 0xFFFD);
   m->bra = 0;
 
+  set_abus(m, m->pc);
+
+  m->cpu_clock = 0;
   m->halt = 0;
 }
-*/
 void m65xx_on(m65xx_t* const m);
 void m65xx_reset(m65xx_t* const m);
 
@@ -1855,7 +1865,7 @@ static inline void m65xx_tick(m65xx_t* const m) {
   on(m, RW);
   // Check whether if Interrupt might occur
   if(m->pins & SYNC) {
-    // m->ir = get_dbus(m);
+    m->ir = get_dbus(m);
     off(m, SYNC);
     m->pc++;
   }
@@ -1863,13 +1873,6 @@ static inline void m65xx_tick(m65xx_t* const m) {
   m->cpu_clock++;
   // Call instruction/addressing mode 
   m6502_opcode_table[m->ir].mode(m);
-}
-
-static inline uint8_t rb(m65xx_t* const m, uint16_t addr) {
-  return m->ram[addr];
-}
-static inline void wb(m65xx_t* const m, uint16_t addr, uint8_t data) {
-  m->ram[addr] = data;
 }
 
 void m65xx_run(m65xx_t* const m) {

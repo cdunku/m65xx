@@ -1,7 +1,7 @@
 .PHONY: all clean
 
 CC := gcc
-CFLAGS := -ggdb -Wall -Wextra -std=c2x -pedantic -Iinclude/ -fsanitize=address -ljansson
+CFLAGS := -ggdb -O3 -Wall -Wextra -std=c2x -pedantic -Iinclude/ -fsanitize=address -ljansson
 LDFLAGS := -ljansson `sdl-config --cflags --libs` -fsanitize=address
 BIN := m65xx
 

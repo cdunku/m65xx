@@ -1,11 +1,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <time.h>
 
 #include <jansson.h>
 #include <SDL2/SDL.h>
 
 #include "m65xx.h"
+#include "debug.h"
 
 void m65xx_init(m65xx_t* const m);
 
@@ -160,22 +162,9 @@ static inline void wb(m65xx_t* const m, uint16_t addr, uint8_t data) {
   m->ram[addr] = data;
 }
 
-void m65xx_init(m65xx_t* const m) {
-//  memset(m->ram, 0, 0x10000);
-  m->pins = 0;
-  m->pins |= (SYNC | RW);
-  m->a = m->x = m->y = m->s = m->p = m->tcu = 0;
-  m->ir = 0xcb;
-  m->p |= 0x20;
-  m->ad = 0;
-  m->pcl = rb(m, 0xFFFC);
-  m->pch = rb(m, 0xFFFD);
-  m->bra = 0;
-
-  m->halt = 0;
+static inline void set_abus(m65xx_t* const m, uint16_t addr) { 
+  m->pins = (m->pins & ~0xFFFFULL) | (addr & 0xFFFF);
 }
-
-
 
 static int allsuiteasm(m65xx_t* const m) {
   memset(m->ram, 0, 0x10000);
@@ -188,7 +177,7 @@ static int allsuiteasm(m65xx_t* const m) {
     do { m65xx_run(m); } while (!(m->pins & SYNC));
 
     if(m->pc == 0x45C0) {
-      if(rb(m, 0x210) == 0xFF) {
+      if(rb(m, 0x0210) == 0xFF) {
         printf("AllSuiteASM passed!\n");
         break;
       }
@@ -201,15 +190,89 @@ static int allsuiteasm(m65xx_t* const m) {
   return 0;
 }
 
+static int m6502_functional_test(m65xx_t* const m) {
+  memset(m->ram, 0, 0x10000);
+
+  load_file(m, "tests/6502_functional_test.bin", 0);
+
+  m65xx_init(m);
+
+  set_abus(m, m->pc = 0x400);
+
+  uint16_t pc_ = 0;
+  
+  while (true) {
+    do { m65xx_run(m); } while (!(m->pins & SYNC));
+
+    // sleep(1);
+    if(pc_ == m->pc) {
+      if(m->pc == 0x3469) {
+        printf("6502 functional test passed!\n");
+        break;
+      }
+      printf("6502 functional test not passed! (trapped at 0x%04X)\n", m->pc);
+      break;
+  }
+    pc_ = m->pc;
+  }
+}
+
+static int m6502_timing_test(m65xx_t* const m) {
+  memset(m->ram, 0, 0x10000); 
+  load_file(m, "tests/timingtest-1.bin", 0x1000);
+
+  m65xx_init(m);  
+
+  set_abus(m, m->pc = 0x1000);
+
+  size_t expected_cyc = 1141LU;
+  while (true) {
+    do { m65xx_run(m); } while (!(m->pins & SYNC));  
+
+    if (m->pc == 0x1269) {
+      printf("%s", m->cpu_clock == expected_cyc ? "Timing test passed!\n" : "Timing Test failed!\n");
+      break;
+    }
+  }
+  return 0; 
+}
+
+static int m6502_decimal_test(m65xx_t* const m) {
+  memset(m->ram, 0, 0x10000);  
+  load_file(m, "tests/6502_decimal_test.bin", 0x200);
+
+  m65xx_init(m);  
+  set_abus(m, m->pc = 0x200);  
+
+  while (true) {
+    do { m65xx_run(m); } while (!(m->pins & SYNC));  
+    if (m->pc == 0x024b) {
+      printf("%s", m->a == 0 ? "6502 Decimal test passed!\n" : "6502 decimal test failed!\n");
+      break;
+    }
+  }
+  return 0;
+}
+
+
 int main(void) {
-    m65xx_t m;
-    tomharte_t t;
+  m65xx_t m;
+  tomharte_t t;
 
-    printf("Starting 6502 test...\n");
-    // load_tomharte(&m, &t, "tests/6502/v1/cb.json");
+  clock_t start = clock();
 
-    allsuiteasm(&m);
-    printf("Test completed!\n");
-    return 0;
+  printf("Starting 6502 test...\n");
+
+  // load_tomharte(&m, &t, "tests/6502/v1/cb.json");
+  allsuiteasm(&m);
+  m6502_functional_test(&m);
+  m6502_timing_test(&m);
+  m6502_decimal_test(&m);
+
+  clock_t end = clock();
+
+  double time = (double)(end - start)/ CLOCKS_PER_SEC;
+  printf("Tests completed in %.4f\n", time);
+  return 0;
 }
 
