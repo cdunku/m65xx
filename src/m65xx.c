@@ -832,7 +832,6 @@ static inline void brk(m65xx_t* const m) {
       break;
     case 7:
       m->pch = get_dbus(m);
-      set_abus(m, m->pc);
 
       m->tcu = 0;
       m6502_fetch(m);
@@ -842,10 +841,118 @@ static inline void brk(m65xx_t* const m) {
       break;
   }
 }
+static inline void nmi(m65xx_t* const m) {
+  switch (m->tcu) {
+    case 1:
+      set_abus(m, m->pc++);
+      break;
+    case 2:
+      off(m, RW);
+      set_abus_dbus(m, 0x100 | m->s--, m->pch);
+      break;
+    case 3:
+      off(m, RW);
+      set_abus_dbus(m, 0x100 | m->s--, m->pcl);
+      break;
+    case 4:
+      off(m, RW);
+      set_abus_dbus(m, 0x100 | m->s--, m->p & ~BF);
+      break;
+    case 5:
+      m->p |= IDF;
+      set_abus(m, 0xFFFA);
+      break;
+    case 6:
+      m->pcl = get_dbus(m);
+      set_abus(m, 0xFFFB);
+      break;
+    case 7:
+      m->pch = get_dbus(m);
 
-static inline void nmi(m65xx_t* const m);
-static inline void irq(m65xx_t* const m);
-static inline void res(m65xx_t* const m);
+      m->tcu = 0;
+      m6502_fetch(m);
+      break;
+    default:
+      printf("Error: invalid cycle count for nmi\n");
+      break;
+  }
+}
+static inline void irq(m65xx_t* const m) {
+  switch (m->tcu) {
+    case 1:
+      if(m->p & IDF) { 
+        m->tcu = 0;
+        m6502_fetch(m);
+
+        return;
+      }
+      set_abus(m, m->pc++);
+      break;
+    case 2:
+      off(m, RW);
+      set_abus_dbus(m, 0x100 | m->s--, m->pch);
+      break;
+    case 3:
+      off(m, RW);
+      set_abus_dbus(m, 0x100 | m->s--, m->pcl);
+      break;
+    case 4:
+      off(m, RW);
+      set_abus_dbus(m, 0x100 | m->s--, m->p & ~BF);
+      break;
+    case 5:
+      m->p |= IDF;
+      set_abus(m, 0xFFFE);
+      break;
+    case 6:
+      m->pcl = get_dbus(m);
+      set_abus(m, 0xFFFF);
+      break;
+    case 7:
+      m->pch = get_dbus(m);
+
+      m->tcu = 0;
+      m6502_fetch(m);
+      break;
+    default:
+      printf("Error: invalid cycle count for irq\n");
+      break;
+  }
+}
+static inline void res(m65xx_t* const m) {
+  switch (m->tcu) {
+    case 1:
+      // Hold during reset
+      break;
+    case 2:
+      // First state starts here
+      set_abus(m, 0x100 | m->s);
+      break;
+    case 3:
+      set_abus(m, 0x100 | m->s--);
+      break;
+    case 4:
+      set_abus(m, 0x100 | m->s--);
+      break;
+    case 5:
+      set_abus(m, 0xFFFC);
+      break;
+    case 6:
+      m->pcl = get_dbus(m);
+      set_abus(m, 0xFFFD);
+      break;
+    case 7:
+      m->pch = get_dbus(m);
+      break;
+    case 8:
+      m->tcu = 0;
+      m6502_fetch(m);
+      break;
+    default:
+      printf("Error: invalid cycle count for res\n");
+      break;
+  }
+}
 
 
 
@@ -961,7 +1068,7 @@ static inline void php(m65xx_t* const m) {
       break;
     case 2:
       off(m, RW);
-      set_abus_dbus(m, 0x100 | m->s--, (m->p | BF));
+      set_abus_dbus(m, 0x100 | m->s--, m->p | BF);
       break;
     case 3:
       m->tcu = 0;
@@ -1008,7 +1115,7 @@ static inline void pha(m65xx_t* const m) {
       m6502_fetch(m);
       break;
     default:
-      printf("Error: invalid cycle count for php\n");
+      printf("Error: invalid cycle count for pha\n");
       break;
   }
 }
@@ -1573,263 +1680,266 @@ static inline void jam(m65xx_t* const m) {
  *
 */
 
-m65xx_opcodes_t m6502_opcode_table[0x100] = {
-  [0x00] = { .mode = brk, .instr = impl },
-  [0x01] = { .mode = idxr, .instr = ora },
-  [0x02] = { .mode = impl, .instr = jam },
-  [0x03] = { .mode = idxm, .instr = slo },
-  [0x04] = { .mode = zpgr, .instr = nop },
-  [0x05] = { .mode = zpgr, .instr = ora },
-  [0x06] = { .mode = zpgm, .instr = asl },
-  [0x07] = { .mode = zpgm, .instr = slo },
-  [0x08] = { .mode = php, .instr = impl },
-  [0x09] = { .mode = imme, .instr = ora },
-  [0x0A] = { .mode = accu, .instr = asl },
-  [0x0B] = { .mode = imme, .instr = anc },
-  [0x0C] = { .mode = absr, .instr = nop },
-  [0x0D] = { .mode = absr, .instr = ora },
-  [0x0E] = { .mode = absm, .instr = asl },
-  [0x0F] = { .mode = absm, .instr = slo },
-  [0x10] = { .mode = rela, .instr = bpl },
-  [0x11] = { .mode = idyr, .instr = ora },
-  [0x12] = { .mode = impl, .instr = jam },
-  [0x13] = { .mode = idym, .instr = slo },
-  [0x14] = { .mode = zpxr, .instr = nop },
-  [0x15] = { .mode = zpxr, .instr = ora },
-  [0x16] = { .mode = zpxm, .instr = asl },
-  [0x17] = { .mode = zpxm, .instr = slo }, 
-  [0x18] = { .mode = impl, .instr = clc },
-  [0x19] = { .mode = abyr, .instr = ora },
-  [0x1A] = { .mode = impl, .instr = nop },
-  [0x1B] = { .mode = abym, .instr = slo },
-  [0x1C] = { .mode = abxr, .instr = nop },
-  [0x1D] = { .mode = abxr, .instr = ora },
-  [0x1E] = { .mode = abxm, .instr = asl },
-  [0x1F] = { .mode = abxm, .instr = slo },
-  [0x20] = { .mode = jsr, .instr = impl },
-  [0x21] = { .mode = idxr, .instr = and },
-  [0x22] = { .mode = impl, .instr = jam },
-  [0x23] = { .mode = idxm, .instr = rla },
-  [0x24] = { .mode = zpgr, .instr = bit },
-  [0x25] = { .mode = zpgr, .instr = and },
-  [0x26] = { .mode = zpgm, .instr = rol },
-  [0x27] = { .mode = zpgm, .instr = rla },
-  [0x28] = { .mode = plp, .instr = impl },
-  [0x29] = { .mode = imme, .instr = and },
-  [0x2A] = { .mode = accu, .instr = rol },
-  [0x2B] = { .mode = imme, .instr = anc }, 
-  [0x2C] = { .mode = absr, .instr = bit },
-  [0x2D] = { .mode = absr, .instr = and },
-  [0x2E] = { .mode = absm, .instr = rol },
-  [0x2F] = { .mode = absm, .instr = rla },
-  [0x30] = { .mode = rela, .instr = bmi },
-  [0x31] = { .mode = idyr, .instr = and },
-  [0x32] = { .mode = impl, .instr = jam },
-  [0x33] = { .mode = idym, .instr = rla },
-  [0x34] = { .mode = zpxr, .instr = nop },
-  [0x35] = { .mode = zpxr, .instr = and },
-  [0x36] = { .mode = zpxm, .instr = rol },
-  [0x37] = { .mode = zpxm, .instr = rla },
-  [0x38] = { .mode = impl, .instr = sec },
-  [0x39] = { .mode = abyr, .instr = and },
-  [0x3A] = { .mode = impl, .instr = nop },
-  [0x3B] = { .mode = abym, .instr = rla },
-  [0x3C] = { .mode = abxr, .instr = nop },
-  [0x3D] = { .mode = abxr, .instr = and },
-  [0x3E] = { .mode = abxm, .instr = rol },
-  [0x3F] = { .mode = abxm, .instr = rla },
-  [0x40] = { .mode = rti, .instr = impl },
-  [0x41] = { .mode = idxr, .instr = eor },
-  [0x42] = { .mode = impl, .instr = jam },
-  [0x43] = { .mode = idxm, .instr = sre },
-  [0x44] = { .mode = zpgr, .instr = nop },
-  [0x45] = { .mode = zpgr, .instr = eor },
-  [0x46] = { .mode = zpgm, .instr = lsr },
-  [0x47] = { .mode = zpgm, .instr = sre },
-  [0x48] = { .mode = pha, .instr = impl },
-  [0x49] = { .mode = imme, .instr = eor },
-  [0x4A] = { .mode = accu, .instr = lsr },
-  [0x4B] = { .mode = imme, .instr = alr },
-  [0x4C] = { .mode = abj, .instr = impl },
-  [0x4D] = { .mode = absr, .instr = eor },
-  [0x4E] = { .mode = absm, .instr = lsr },
-  [0x4F] = { .mode = absm, .instr = sre },
-  [0x50] = { .mode = rela, .instr = bvc },
-  [0x51] = { .mode = idyr, .instr = eor },
-  [0x52] = { .mode = impl, .instr = jam },
-  [0x53] = { .mode = idym, .instr = sre },
-  [0x54] = { .mode = zpxr, .instr = nop },
-  [0x55] = { .mode = zpxr, .instr = eor },
-  [0x56] = { .mode = zpxm, .instr = lsr },
-  [0x57] = { .mode = zpxm, .instr = sre },
-  [0x58] = { .mode = impl, .instr = cli },
-  [0x59] = { .mode = abyr, .instr = eor },
-  [0x5A] = { .mode = impl, .instr = nop },
-  [0x5B] = { .mode = abym, .instr = sre },
-  [0x5C] = { .mode = abxr, .instr = nop },
-  [0x5D] = { .mode = abxr, .instr = eor },
-  [0x5E] = { .mode = abxm, .instr = lsr },
-  [0x5F] = { .mode = abxm, .instr = sre },
-  [0x60] = { .mode = rts, .instr = impl },
-  [0x61] = { .mode = idxr, .instr = adc },
-  [0x62] = { .mode = impl, .instr = jam },
-  [0x63] = { .mode = idxm, .instr = rra },
-  [0x64] = { .mode = zpgr, .instr = nop },
-  [0x65] = { .mode = zpgr, .instr = adc },
-  [0x66] = { .mode = zpgm, .instr = ror },
-  [0x67] = { .mode = zpgm, .instr = rra },
-  [0x68] = { .mode = pla, .instr = impl },
-  [0x69] = { .mode = imme, .instr = adc },
-  [0x6A] = { .mode = accu, .instr = ror },
-  [0x6B] = { .mode = imme, .instr = arr },
-  [0x6C] = { .mode = inj, .instr = impl },
-  [0x6D] = { .mode = absr, .instr = adc },
-  [0x6E] = { .mode = absm, .instr = ror },
-  [0x6F] = { .mode = absm, .instr = rra },
-  [0x70] = { .mode = rela, .instr = bvs },
-  [0x71] = { .mode = idyr, .instr = adc },
-  [0x72] = { .mode = impl, .instr = jam },
-  [0x73] = { .mode = idym, .instr = rra },
-  [0x74] = { .mode = zpxr, .instr = nop },
-  [0x75] = { .mode = zpxr, .instr = adc },
-  [0x76] = { .mode = zpxm, .instr = ror },
-  [0x77] = { .mode = zpxm, .instr = rra },
-  [0x78] = { .mode = impl, .instr = sei },
-  [0x79] = { .mode = abyr, .instr = adc },
-  [0x7A] = { .mode = impl, .instr = nop },
-  [0x7B] = { .mode = abym, .instr = rra },
-  [0x7C] = { .mode = abxr, .instr = nop },
-  [0x7D] = { .mode = abxr, .instr = adc },
-  [0x7E] = { .mode = abxm, .instr = ror },
-  [0x7F] = { .mode = abxm, .instr = rra },
-  [0x80] = { .mode = imme, .instr = nop },
-  [0x81] = { .mode = idxw, .instr = sta },
-  [0x82] = { .mode = imme, .instr = nop },
-  [0x83] = { .mode = idxw, .instr = sax }, 
-  [0x84] = { .mode = zpgw, .instr = sty },
-  [0x85] = { .mode = zpgw, .instr = sta },
-  [0x86] = { .mode = zpgw, .instr = stx },
-  [0x87] = { .mode = zpgw, .instr = sax },
-  [0x88] = { .mode = impl, .instr = dey },
-  [0x89] = { .mode = imme, .instr = nop },
-  [0x8A] = { .mode = impl, .instr = txa },
-  [0x8B] = { .mode = imme, .instr = ane },
-  [0x8C] = { .mode = absw, .instr = sty },
-  [0x8D] = { .mode = absw, .instr = sta },
-  [0x8E] = { .mode = absw, .instr = stx },
-  [0x8F] = { .mode = absw, .instr = sax },
-  [0x90] = { .mode = rela, .instr = bcc },
-  [0x91] = { .mode = idyw, .instr = sta },
-  [0x92] = { .mode = impl, .instr = jam },
-  [0x93] = { .mode = idyw, .instr = sha }, // ?
-  [0x94] = { .mode = zpxw, .instr = sty },
-  [0x95] = { .mode = zpxw, .instr = sta },
-  [0x96] = { .mode = zpyw, .instr = stx },
-  [0x97] = { .mode = zpyw, .instr = sax },
-  [0x98] = { .mode = impl, .instr = tya },
-  [0x99] = { .mode = abyw, .instr = sta },
-  [0x9A] = { .mode = impl, .instr = txs },
-  [0x9B] = { .mode = abyw, .instr = tas }, // ?
-  [0x9C] = { .mode = abxw, .instr = shy }, // ?
-  [0x9D] = { .mode = abxw, .instr = sta },
-  [0x9E] = { .mode = abyw, .instr = shx }, // ?
-  [0x9F] = { .mode = abyw, .instr = sha }, // ?
-  [0xA0] = { .mode = imme, .instr = ldy },
-  [0xA1] = { .mode = idxr, .instr = lda },
-  [0xA2] = { .mode = imme, .instr = ldx },
-  [0xA3] = { .mode = idxr, .instr = lax },
-  [0xA4] = { .mode = zpgr, .instr = ldy },
-  [0xA5] = { .mode = zpgr, .instr = lda },
-  [0xA6] = { .mode = zpgr, .instr = ldx },
-  [0xA7] = { .mode = zpgr, .instr = lax },
-  [0xA8] = { .mode = impl, .instr = tay },
-  [0xA9] = { .mode = imme, .instr = lda },
-  [0xAA] = { .mode = impl, .instr = tax },
-  [0xAB] = { .mode = imme, .instr = lxa },
-  [0xAC] = { .mode = absr, .instr = ldy },
-  [0xAD] = { .mode = absr, .instr = lda },
-  [0xAE] = { .mode = absr, .instr = ldx },
-  [0xAF] = { .mode = absr, .instr = lax },
-  [0xB0] = { .mode = rela, .instr = bcs },
-  [0xB1] = { .mode = idyr, .instr = lda },
-  [0xB2] = { .mode = impl, .instr = jam },
-  [0xB3] = { .mode = idyr, .instr = lax },
-  [0xB4] = { .mode = zpxr, .instr = ldy },
-  [0xB5] = { .mode = zpxr, .instr = lda },
-  [0xB6] = { .mode = zpyr, .instr = ldx },
-  [0xB7] = { .mode = zpyr, .instr = lax },
-  [0xB8] = { .mode = impl, .instr = clv },
-  [0xB9] = { .mode = abyr, .instr = lda },
-  [0xBA] = { .mode = impl, .instr = tsx },
-  [0xBB] = { .mode = abyr, .instr = las },
-  [0xBC] = { .mode = abxr, .instr = ldy },
-  [0xBD] = { .mode = abxr, .instr = lda },
-  [0xBE] = { .mode = abyr, .instr = ldx },
-  [0xBF] = { .mode = abyr, .instr = lax },
-  [0xC0] = { .mode = imme, .instr = cpy },
-  [0xC1] = { .mode = idxr, .instr = cmp },
-  [0xC2] = { .mode = imme, .instr = nop },
-  [0xC3] = { .mode = idxm, .instr = dcp },
-  [0xC4] = { .mode = zpgr, .instr = cpy },
-  [0xC5] = { .mode = zpgr, .instr = cmp },
-  [0xC6] = { .mode = zpgm, .instr = dec },
-  [0xC7] = { .mode = zpgm, .instr = dcp },
-  [0xC8] = { .mode = impl, .instr = iny },
-  [0xC9] = { .mode = imme, .instr = cmp },
-  [0xCA] = { .mode = impl, .instr = dex },
-  [0xCB] = { .mode = imme, .instr = sbx },
-  [0xCC] = { .mode = absr, .instr = cpy },
-  [0xCD] = { .mode = absr, .instr = cmp },
-  [0xCE] = { .mode = absm, .instr = dec },
-  [0xCF] = { .mode = absm, .instr = dcp },
-  [0xD0] = { .mode = rela, .instr = bne },
-  [0xD1] = { .mode = idyr, .instr = cmp },
-  [0xD2] = { .mode = impl, .instr = jam },
-  [0xD3] = { .mode = idym, .instr = dcp },
-  [0xD4] = { .mode = zpxr, .instr = nop },
-  [0xD5] = { .mode = zpxr, .instr = cmp },
-  [0xD6] = { .mode = zpxm, .instr = dec },
-  [0xD7] = { .mode = zpxm, .instr = dcp },
-  [0xD8] = { .mode = impl, .instr = cld },
-  [0xD9] = { .mode = abyr, .instr = cmp },
-  [0xDA] = { .mode = impl, .instr = nop },
-  [0xDB] = { .mode = abym, .instr = dcp },
-  [0xDC] = { .mode = abxr, .instr = nop },
-  [0xDD] = { .mode = abxr, .instr = cmp },
-  [0xDE] = { .mode = abxm, .instr = dec },
-  [0xDF] = { .mode = abxm, .instr = dcp },
-  [0xE0] = { .mode = imme, .instr = cpx },
-  [0xE1] = { .mode = idxr, .instr = sbc },
-  [0xE2] = { .mode = imme, .instr = nop },
-  [0xE3] = { .mode = idxm, .instr = isc },
-  [0xE4] = { .mode = zpgr, .instr = cpx },
-  [0xE5] = { .mode = zpgr, .instr = sbc },
-  [0xE6] = { .mode = zpgm, .instr = inc },
-  [0xE7] = { .mode = zpgm, .instr = isc },
-  [0xE8] = { .mode = impl, .instr = inx },
-  [0xE9] = { .mode = imme, .instr = sbc },
-  [0xEA] = { .mode = impl, .instr = nop },
-  [0xEB] = { .mode = imme, .instr = sbc },
-  [0xEC] = { .mode = absr, .instr = cpx },
-  [0xED] = { .mode = absr, .instr = sbc },
-  [0xEE] = { .mode = absm, .instr = inc },
-  [0xEF] = { .mode = absm, .instr = isc },
-  [0xF0] = { .mode = rela, .instr = beq },
-  [0xF1] = { .mode = idyr, .instr = sbc },
-  [0xF2] = { .mode = impl, .instr = jam },
-  [0xF3] = { .mode = idym, .instr = isc },
-  [0xF4] = { .mode = zpxr, .instr = nop },
-  [0xF5] = { .mode = zpxr, .instr = sbc },
-  [0xF6] = { .mode = zpxm, .instr = inc },
-  [0xF7] = { .mode = zpxm, .instr = isc },
-  [0xF8] = { .mode = impl, .instr = sed },
-  [0xF9] = { .mode = abyr, .instr = sbc },
-  [0xFA] = { .mode = impl, .instr = nop },
-  [0xFB] = { .mode = abym, .instr = isc },
-  [0xFC] = { .mode = abxr, .instr = nop },
-  [0xFD] = { .mode = abxr, .instr = sbc },
-  [0xFE] = { .mode = abxm, .instr = inc },
-  [0xFF] = { .mode = abxm, .instr = isc },
+m65xx_opcodes_t m6502_opcode_table[0x103] = {
+  [0x00] =  { .mode = brk, .instr = impl },
+  [0x01] =  { .mode = idxr, .instr = ora },
+  [0x02] =  { .mode = impl, .instr = jam },
+  [0x03] =  { .mode = idxm, .instr = slo },
+  [0x04] =  { .mode = zpgr, .instr = nop },
+  [0x05] =  { .mode = zpgr, .instr = ora },
+  [0x06] =  { .mode = zpgm, .instr = asl },
+  [0x07] =  { .mode = zpgm, .instr = slo },
+  [0x08] =  { .mode = php, .instr = impl },
+  [0x09] =  { .mode = imme, .instr = ora },
+  [0x0A] =  { .mode = accu, .instr = asl },
+  [0x0B] =  { .mode = imme, .instr = anc },
+  [0x0C] =  { .mode = absr, .instr = nop },
+  [0x0D] =  { .mode = absr, .instr = ora },
+  [0x0E] =  { .mode = absm, .instr = asl },
+  [0x0F] =  { .mode = absm, .instr = slo },
+  [0x10] =  { .mode = rela, .instr = bpl },
+  [0x11] =  { .mode = idyr, .instr = ora },
+  [0x12] =  { .mode = impl, .instr = jam },
+  [0x13] =  { .mode = idym, .instr = slo },
+  [0x14] =  { .mode = zpxr, .instr = nop },
+  [0x15] =  { .mode = zpxr, .instr = ora },
+  [0x16] =  { .mode = zpxm, .instr = asl },
+  [0x17] =  { .mode = zpxm, .instr = slo }, 
+  [0x18] =  { .mode = impl, .instr = clc },
+  [0x19] =  { .mode = abyr, .instr = ora },
+  [0x1A] =  { .mode = impl, .instr = nop },
+  [0x1B] =  { .mode = abym, .instr = slo },
+  [0x1C] =  { .mode = abxr, .instr = nop },
+  [0x1D] =  { .mode = abxr, .instr = ora },
+  [0x1E] =  { .mode = abxm, .instr = asl },
+  [0x1F] =  { .mode = abxm, .instr = slo },
+  [0x20] =  { .mode = jsr, .instr = impl },
+  [0x21] =  { .mode = idxr, .instr = and },
+  [0x22] =  { .mode = impl, .instr = jam },
+  [0x23] =  { .mode = idxm, .instr = rla },
+  [0x24] =  { .mode = zpgr, .instr = bit },
+  [0x25] =  { .mode = zpgr, .instr = and },
+  [0x26] =  { .mode = zpgm, .instr = rol },
+  [0x27] =  { .mode = zpgm, .instr = rla },
+  [0x28] =  { .mode = plp, .instr = impl },
+  [0x29] =  { .mode = imme, .instr = and },
+  [0x2A] =  { .mode = accu, .instr = rol },
+  [0x2B] =  { .mode = imme, .instr = anc }, 
+  [0x2C] =  { .mode = absr, .instr = bit },
+  [0x2D] =  { .mode = absr, .instr = and },
+  [0x2E] =  { .mode = absm, .instr = rol },
+  [0x2F] =  { .mode = absm, .instr = rla },
+  [0x30] =  { .mode = rela, .instr = bmi },
+  [0x31] =  { .mode = idyr, .instr = and },
+  [0x32] =  { .mode = impl, .instr = jam },
+  [0x33] =  { .mode = idym, .instr = rla },
+  [0x34] =  { .mode = zpxr, .instr = nop },
+  [0x35] =  { .mode = zpxr, .instr = and },
+  [0x36] =  { .mode = zpxm, .instr = rol },
+  [0x37] =  { .mode = zpxm, .instr = rla },
+  [0x38] =  { .mode = impl, .instr = sec },
+  [0x39] =  { .mode = abyr, .instr = and },
+  [0x3A] =  { .mode = impl, .instr = nop },
+  [0x3B] =  { .mode = abym, .instr = rla },
+  [0x3C] =  { .mode = abxr, .instr = nop },
+  [0x3D] =  { .mode = abxr, .instr = and },
+  [0x3E] =  { .mode = abxm, .instr = rol },
+  [0x3F] =  { .mode = abxm, .instr = rla },
+  [0x40] =  { .mode = rti, .instr = impl },
+  [0x41] =  { .mode = idxr, .instr = eor },
+  [0x42] =  { .mode = impl, .instr = jam },
+  [0x43] =  { .mode = idxm, .instr = sre },
+  [0x44] =  { .mode = zpgr, .instr = nop },
+  [0x45] =  { .mode = zpgr, .instr = eor },
+  [0x46] =  { .mode = zpgm, .instr = lsr },
+  [0x47] =  { .mode = zpgm, .instr = sre },
+  [0x48] =  { .mode = pha, .instr = impl },
+  [0x49] =  { .mode = imme, .instr = eor },
+  [0x4A] =  { .mode = accu, .instr = lsr },
+  [0x4B] =  { .mode = imme, .instr = alr },
+  [0x4C] =  { .mode = abj, .instr = impl },
+  [0x4D] =  { .mode = absr, .instr = eor },
+  [0x4E] =  { .mode = absm, .instr = lsr },
+  [0x4F] =  { .mode = absm, .instr = sre },
+  [0x50] =  { .mode = rela, .instr = bvc },
+  [0x51] =  { .mode = idyr, .instr = eor },
+  [0x52] =  { .mode = impl, .instr = jam },
+  [0x53] =  { .mode = idym, .instr = sre },
+  [0x54] =  { .mode = zpxr, .instr = nop },
+  [0x55] =  { .mode = zpxr, .instr = eor },
+  [0x56] =  { .mode = zpxm, .instr = lsr },
+  [0x57] =  { .mode = zpxm, .instr = sre },
+  [0x58] =  { .mode = impl, .instr = cli },
+  [0x59] =  { .mode = abyr, .instr = eor },
+  [0x5A] =  { .mode = impl, .instr = nop },
+  [0x5B] =  { .mode = abym, .instr = sre },
+  [0x5C] =  { .mode = abxr, .instr = nop },
+  [0x5D] =  { .mode = abxr, .instr = eor },
+  [0x5E] =  { .mode = abxm, .instr = lsr },
+  [0x5F] =  { .mode = abxm, .instr = sre },
+  [0x60] =  { .mode = rts, .instr = impl },
+  [0x61] =  { .mode = idxr, .instr = adc },
+  [0x62] =  { .mode = impl, .instr = jam },
+  [0x63] =  { .mode = idxm, .instr = rra },
+  [0x64] =  { .mode = zpgr, .instr = nop },
+  [0x65] =  { .mode = zpgr, .instr = adc },
+  [0x66] =  { .mode = zpgm, .instr = ror },
+  [0x67] =  { .mode = zpgm, .instr = rra },
+  [0x68] =  { .mode = pla, .instr = impl },
+  [0x69] =  { .mode = imme, .instr = adc },
+  [0x6A] =  { .mode = accu, .instr = ror },
+  [0x6B] =  { .mode = imme, .instr = arr },
+  [0x6C] =  { .mode = inj, .instr = impl },
+  [0x6D] =  { .mode = absr, .instr = adc },
+  [0x6E] =  { .mode = absm, .instr = ror },
+  [0x6F] =  { .mode = absm, .instr = rra },
+  [0x70] =  { .mode = rela, .instr = bvs },
+  [0x71] =  { .mode = idyr, .instr = adc },
+  [0x72] =  { .mode = impl, .instr = jam },
+  [0x73] =  { .mode = idym, .instr = rra },
+  [0x74] =  { .mode = zpxr, .instr = nop },
+  [0x75] =  { .mode = zpxr, .instr = adc },
+  [0x76] =  { .mode = zpxm, .instr = ror },
+  [0x77] =  { .mode = zpxm, .instr = rra },
+  [0x78] =  { .mode = impl, .instr = sei },
+  [0x79] =  { .mode = abyr, .instr = adc },
+  [0x7A] =  { .mode = impl, .instr = nop },
+  [0x7B] =  { .mode = abym, .instr = rra },
+  [0x7C] =  { .mode = abxr, .instr = nop },
+  [0x7D] =  { .mode = abxr, .instr = adc },
+  [0x7E] =  { .mode = abxm, .instr = ror },
+  [0x7F] =  { .mode = abxm, .instr = rra },
+  [0x80] =  { .mode = imme, .instr = nop },
+  [0x81] =  { .mode = idxw, .instr = sta },
+  [0x82] =  { .mode = imme, .instr = nop },
+  [0x83] =  { .mode = idxw, .instr = sax }, 
+  [0x84] =  { .mode = zpgw, .instr = sty },
+  [0x85] =  { .mode = zpgw, .instr = sta },
+  [0x86] =  { .mode = zpgw, .instr = stx },
+  [0x87] =  { .mode = zpgw, .instr = sax },
+  [0x88] =  { .mode = impl, .instr = dey },
+  [0x89] =  { .mode = imme, .instr = nop },
+  [0x8A] =  { .mode = impl, .instr = txa },
+  [0x8B] =  { .mode = imme, .instr = ane },
+  [0x8C] =  { .mode = absw, .instr = sty },
+  [0x8D] =  { .mode = absw, .instr = sta },
+  [0x8E] =  { .mode = absw, .instr = stx },
+  [0x8F] =  { .mode = absw, .instr = sax },
+  [0x90] =  { .mode = rela, .instr = bcc },
+  [0x91] =  { .mode = idyw, .instr = sta },
+  [0x92] =  { .mode = impl, .instr = jam },
+  [0x93] =  { .mode = idyw, .instr = sha }, // ?
+  [0x94] =  { .mode = zpxw, .instr = sty },
+  [0x95] =  { .mode = zpxw, .instr = sta },
+  [0x96] =  { .mode = zpyw, .instr = stx },
+  [0x97] =  { .mode = zpyw, .instr = sax },
+  [0x98] =  { .mode = impl, .instr = tya },
+  [0x99] =  { .mode = abyw, .instr = sta },
+  [0x9A] =  { .mode = impl, .instr = txs },
+  [0x9B] =  { .mode = abyw, .instr = tas }, // ?
+  [0x9C] =  { .mode = abxw, .instr = shy }, // ?
+  [0x9D] =  { .mode = abxw, .instr = sta },
+  [0x9E] =  { .mode = abyw, .instr = shx }, // ?
+  [0x9F] =  { .mode = abyw, .instr = sha }, // ?
+  [0xA0] =  { .mode = imme, .instr = ldy },
+  [0xA1] =  { .mode = idxr, .instr = lda },
+  [0xA2] =  { .mode = imme, .instr = ldx },
+  [0xA3] =  { .mode = idxr, .instr = lax },
+  [0xA4] =  { .mode = zpgr, .instr = ldy },
+  [0xA5] =  { .mode = zpgr, .instr = lda },
+  [0xA6] =  { .mode = zpgr, .instr = ldx },
+  [0xA7] =  { .mode = zpgr, .instr = lax },
+  [0xA8] =  { .mode = impl, .instr = tay },
+  [0xA9] =  { .mode = imme, .instr = lda },
+  [0xAA] =  { .mode = impl, .instr = tax },
+  [0xAB] =  { .mode = imme, .instr = lxa },
+  [0xAC] =  { .mode = absr, .instr = ldy },
+  [0xAD] =  { .mode = absr, .instr = lda },
+  [0xAE] =  { .mode = absr, .instr = ldx },
+  [0xAF] =  { .mode = absr, .instr = lax },
+  [0xB0] =  { .mode = rela, .instr = bcs },
+  [0xB1] =  { .mode = idyr, .instr = lda },
+  [0xB2] =  { .mode = impl, .instr = jam },
+  [0xB3] =  { .mode = idyr, .instr = lax },
+  [0xB4] =  { .mode = zpxr, .instr = ldy },
+  [0xB5] =  { .mode = zpxr, .instr = lda },
+  [0xB6] =  { .mode = zpyr, .instr = ldx },
+  [0xB7] =  { .mode = zpyr, .instr = lax },
+  [0xB8] =  { .mode = impl, .instr = clv },
+  [0xB9] =  { .mode = abyr, .instr = lda },
+  [0xBA] =  { .mode = impl, .instr = tsx },
+  [0xBB] =  { .mode = abyr, .instr = las },
+  [0xBC] =  { .mode = abxr, .instr = ldy },
+  [0xBD] =  { .mode = abxr, .instr = lda },
+  [0xBE] =  { .mode = abyr, .instr = ldx },
+  [0xBF] =  { .mode = abyr, .instr = lax },
+  [0xC0] =  { .mode = imme, .instr = cpy },
+  [0xC1] =  { .mode = idxr, .instr = cmp },
+  [0xC2] =  { .mode = imme, .instr = nop },
+  [0xC3] =  { .mode = idxm, .instr = dcp },
+  [0xC4] =  { .mode = zpgr, .instr = cpy },
+  [0xC5] =  { .mode = zpgr, .instr = cmp },
+  [0xC6] =  { .mode = zpgm, .instr = dec },
+  [0xC7] =  { .mode = zpgm, .instr = dcp },
+  [0xC8] =  { .mode = impl, .instr = iny },
+  [0xC9] =  { .mode = imme, .instr = cmp },
+  [0xCA] =  { .mode = impl, .instr = dex },
+  [0xCB] =  { .mode = imme, .instr = sbx },
+  [0xCC] =  { .mode = absr, .instr = cpy },
+  [0xCD] =  { .mode = absr, .instr = cmp },
+  [0xCE] =  { .mode = absm, .instr = dec },
+  [0xCF] =  { .mode = absm, .instr = dcp },
+  [0xD0] =  { .mode = rela, .instr = bne },
+  [0xD1] =  { .mode = idyr, .instr = cmp },
+  [0xD2] =  { .mode = impl, .instr = jam },
+  [0xD3] =  { .mode = idym, .instr = dcp },
+  [0xD4] =  { .mode = zpxr, .instr = nop },
+  [0xD5] =  { .mode = zpxr, .instr = cmp },
+  [0xD6] =  { .mode = zpxm, .instr = dec },
+  [0xD7] =  { .mode = zpxm, .instr = dcp },
+  [0xD8] =  { .mode = impl, .instr = cld },
+  [0xD9] =  { .mode = abyr, .instr = cmp },
+  [0xDA] =  { .mode = impl, .instr = nop },
+  [0xDB] =  { .mode = abym, .instr = dcp },
+  [0xDC] =  { .mode = abxr, .instr = nop },
+  [0xDD] =  { .mode = abxr, .instr = cmp },
+  [0xDE] =  { .mode = abxm, .instr = dec },
+  [0xDF] =  { .mode = abxm, .instr = dcp },
+  [0xE0] =  { .mode = imme, .instr = cpx },
+  [0xE1] =  { .mode = idxr, .instr = sbc },
+  [0xE2] =  { .mode = imme, .instr = nop },
+  [0xE3] =  { .mode = idxm, .instr = isc },
+  [0xE4] =  { .mode = zpgr, .instr = cpx },
+  [0xE5] =  { .mode = zpgr, .instr = sbc },
+  [0xE6] =  { .mode = zpgm, .instr = inc },
+  [0xE7] =  { .mode = zpgm, .instr = isc },
+  [0xE8] =  { .mode = impl, .instr = inx },
+  [0xE9] =  { .mode = imme, .instr = sbc },
+  [0xEA] =  { .mode = impl, .instr = nop },
+  [0xEB] =  { .mode = imme, .instr = sbc },
+  [0xEC] =  { .mode = absr, .instr = cpx },
+  [0xED] =  { .mode = absr, .instr = sbc },
+  [0xEE] =  { .mode = absm, .instr = inc },
+  [0xEF] =  { .mode = absm, .instr = isc },
+  [0xF0] =  { .mode = rela, .instr = beq },
+  [0xF1] =  { .mode = idyr, .instr = sbc },
+  [0xF2] =  { .mode = impl, .instr = jam },
+  [0xF3] =  { .mode = idym, .instr = isc },
+  [0xF4] =  { .mode = zpxr, .instr = nop },
+  [0xF5] =  { .mode = zpxr, .instr = sbc },
+  [0xF6] =  { .mode = zpxm, .instr = inc },
+  [0xF7] =  { .mode = zpxm, .instr = isc },
+  [0xF8] =  { .mode = impl, .instr = sed },
+  [0xF9] =  { .mode = abyr, .instr = sbc },
+  [0xFA] =  { .mode = impl, .instr = nop },
+  [0xFB] =  { .mode = abym, .instr = isc },
+  [0xFC] =  { .mode = abxr, .instr = nop },
+  [0xFD] =  { .mode = abxr, .instr = sbc },
+  [0xFE] =  { .mode = abxm, .instr = inc },
+  [0xFF] =  { .mode = abxm, .instr = isc },
+  [0x100] = { .mode = res, .instr = impl },
+  [0x101] = { .mode = nmi, .instr = impl },
+  [0x102] = { .mode = irq, .instr = impl },
 }; 
 
 static inline uint8_t rb(m65xx_t* const m, uint16_t addr) {
@@ -1842,19 +1952,18 @@ static inline void wb(m65xx_t* const m, uint16_t addr, uint8_t data) {
 void m65xx_init(m65xx_t* const m) {
 //  memset(m->ram, 0, 0x10000);
   m->pins = 0;
-  m->pins |= (SYNC | RW);
-  m->pc = m->a = m->x = m->y = m->p = m->tcu = 0;
+  m->pins |= (RW | SYNC);
+  m->a = m->x = m->y = m->p = m->tcu = 0;
   m->s = 0xFD;
   m->p |= 0x20;
-  m->ad = 0;
-  m->pcl = rb(m, 0xFFFC);
-  m->pch = rb(m, 0xFFFD);
+
+  m->ir = 0x00; 
+  m->pc = m->ad = 0;
   m->bra = 0;
 
-  set_abus(m, m->pc);
-
+  m->inte = 0;
   m->cpu_clock = 0;
-  m->halt = 0;
+  m->halt = m->nmi_edge = m->nmi_ = m->irq_ = 0;
 }
 void m65xx_on(m65xx_t* const m);
 void m65xx_reset(m65xx_t* const m);
@@ -1863,11 +1972,24 @@ static inline void m65xx_tick(m65xx_t* const m) {
   if(m->halt) { return; }
 
   on(m, RW);
-  // Check whether if Interrupt might occur
+/*
+  if((m->pins & NMI) && !(m->nmi_edge)) { m->nmi_ = 1; }
+  m->nmi_edge = m->pins & NMI; // Updates if a edge case has occured
+
+  if((m->pins & IRQ) && !(m->p & IDF)) { m->irq_ = 1; } else { m->irq_ = 0; }
+*/
   if(m->pins & SYNC) {
     m->ir = get_dbus(m);
     off(m, SYNC);
-    m->pc++;
+    if(m->nmi_) {
+      m->ir = NMI_OPCODE;
+      m->nmi_ = 0;
+    }
+    else if(m->irq_) {
+      m->ir = IRQ_OPCODE;
+      m->irq_ = 0;
+    }
+    else { m->pc++; }
   }
   m->tcu++;
   m->cpu_clock++;

@@ -46,6 +46,10 @@ static const uint8_t IDF = (1 << 2);
 static const uint8_t ZF  = (1 << 1);
 static const uint8_t CF  = (1 << 0);
 
+static const uint16_t RES_OPCODE = 0x100;
+static const uint16_t NMI_OPCODE = 0x101;
+static const uint16_t IRQ_OPCODE = 0x102;
+
 typedef struct {
   uint8_t ram[0x10000];
   uint64_t pins;
@@ -56,14 +60,16 @@ typedef struct {
   bool bra;
   uint64_t cpu_clock;
 
-  // nmi_edge holds the edge case value, nmi_handle executes a non-maskable interrupt.
-  bool nmi_edge, nmi_handle, irq_pending, halt;
+  // nmi_edge holds the edge case value, nmi_ executes a non-maskable interrupt.
+  bool nmi_edge, nmi_, irq_, halt;
 
   bool first_reset;
+  uint8_t inte;
 } m65xx_t;
 
 typedef struct { void (*mode)(m65xx_t*); void (*instr)(m65xx_t*); } m65xx_opcodes_t;
-extern m65xx_opcodes_t m6502_opcode_table[0x100];
+extern m65xx_opcodes_t m6502_opcode_table[0x103];
 
 void m65xx_run(m65xx_t* const m);
 void m65xx_init(m65xx_t* const m);
+

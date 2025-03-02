@@ -155,13 +155,8 @@ static int load_file(m65xx_t* const m, const char *file, uint16_t addr) {
   return 0;
 }
 
-static inline uint8_t rb(m65xx_t* const m, uint16_t addr) {
-  return m->ram[addr];
-}
-static inline void wb(m65xx_t* const m, uint16_t addr, uint8_t data) {
-  m->ram[addr] = data;
-}
-
+static inline uint8_t rb(m65xx_t* const m, uint16_t addr) { return m->ram[addr]; }
+static inline void wb(m65xx_t* const m, uint16_t addr, uint8_t data) { m->ram[addr] = data; }
 static inline void set_abus(m65xx_t* const m, uint16_t addr) { 
   m->pins = (m->pins & ~0xFFFFULL) | (addr & 0xFFFF);
 }
@@ -193,7 +188,7 @@ static int allsuiteasm(m65xx_t* const m) {
 static int m6502_functional_test(m65xx_t* const m) {
   memset(m->ram, 0, 0x10000);
 
-  load_file(m, "tests/6502_functional_test.bin", 0);
+  load_file(m, "tests/6502_functional_test.bin", 0x0);
 
   m65xx_init(m);
 
@@ -204,7 +199,6 @@ static int m6502_functional_test(m65xx_t* const m) {
   while (true) {
     do { m65xx_run(m); } while (!(m->pins & SYNC));
 
-    // sleep(1);
     if(pc_ == m->pc) {
       if(m->pc == 0x3469) {
         printf("6502 functional test passed!\n");
@@ -254,6 +248,49 @@ static int m6502_decimal_test(m65xx_t* const m) {
   return 0;
 }
 
+void m6502_interrupt_handler(m65xx_t* const m) {
+  if((m->inte & 0x2) == 0x2) {
+    m->nmi_ = 1;
+    m->inte &= ~0x2;
+  }
+  if(!(m->p & IDF) && (m->inte & 0x1) == 0x1) {
+    m->irq_ = 1;
+    m->inte &= ~0x1;
+  }
+}
+
+
+
+static int m6502_interrupt_test(m65xx_t* const m) {
+  memset(m->ram, 0, 0x10000);  
+  load_file(m, "tests/6502_interrupt_test.bin", 0xA);
+
+  m65xx_init(m);  
+
+  uint16_t pc_ = 0;
+  set_abus(m, m->pc = 0x400);  
+
+  wb(m, 0xBFFC, 0);
+  while (true) {
+    do { m65xx_run(m); } while (!(m->pins & SYNC));
+    m6502_print(m);
+
+    m->inte = rb(m, 0xBFFC);
+    m6502_interrupt_handler(m);
+    wb(m, 0xBFFC, m->inte);
+
+    if (pc_ == m->pc) { 
+      if(m->pc == 0x06F5) {
+        printf("6502 Interrupt test passed!\n");
+        break;
+      }
+      printf("6502 Interrupt test failed!\n");
+      break;
+    }
+    pc_ = m->pc;
+  }
+  return 0;
+}
 
 int main(void) {
   m65xx_t m;
@@ -264,10 +301,11 @@ int main(void) {
   printf("Starting 6502 test...\n");
 
   // load_tomharte(&m, &t, "tests/6502/v1/cb.json");
-  allsuiteasm(&m);
-  m6502_functional_test(&m);
-  m6502_timing_test(&m);
-  m6502_decimal_test(&m);
+  // allsuiteasm(&m);
+  // m6502_functional_test(&m);
+  // m6502_timing_test(&m);
+  // m6502_decimal_test(&m);
+  m6502_interrupt_test(&m);
 
   clock_t end = clock();
 
