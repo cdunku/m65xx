@@ -1146,25 +1146,26 @@ static inline void pla(m65xx_t* const m) {
 static inline void rti(m65xx_t* const m) {
   switch (m->tcu) {
     case 1:
-      set_abus(m, m->pc);
+      set_abus(m, m->pc++);
       break;
     case 2:
-      set_abus(m, 0x100 | ++m->s);
+      set_abus(m, 0x100 | m->s);
       break;
     case 3:
+      set_abus(m, 0x100 | ++m->s);
+      break;
+    case 4:
       // Sets the 5th (always set) and disables the BF flag if set when value of P is updated
       m->p = (get_dbus(m) | 0x20) & (~BF);
       set_abus(m, 0x100 | ++m->s);
       break;
-    case 4:
+    case 5:
       m->pcl = get_dbus(m);
       set_abus(m, 0x100 | ++m->s);
       break;
-    case 5:
-      m->pch = get_dbus(m);
-      set_abus(m, 0x100 | m->s);
-      break;
     case 6:
+      m->pch = get_dbus(m);
+
       m->tcu = 0;
       m6502_fetch(m);
       break;
@@ -1430,7 +1431,8 @@ static inline void cmp(m65xx_t* const m) {
   if(!((data >> 8) & 0x1)) { m->p |= CF; } else { m->p &= ~CF; }
 }
 static inline void cpy(m65xx_t* const m) {
-  uint16_t data = m->y - get_dbus(m);
+  uint8_t val = get_dbus(m);
+  uint16_t data = m->y - val;
   set_nz(m, data & 0xFF);
   if(!((data >> 8) & 0x1)) { m->p |= CF; } else { m->p &= ~CF; }
 }

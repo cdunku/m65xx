@@ -247,51 +247,51 @@ static int m6502_decimal_test(m65xx_t* const m) {
   }
   return 0;
 }
-
 void m6502_interrupt_handler(m65xx_t* const m) {
-  if((m->inte & 0x2) == 0x2) {
-    m->nmi_ = 1;
-    m->inte &= ~0x2;
-  }
-  if(!(m->p & IDF) && (m->inte & 0x1) == 0x1) {
-    m->irq_ = 1;
-    m->inte &= ~0x1;
-  }
+    if ((m->inte & 0x2) == 0x2) {
+        m->nmi_ = 1;
+        m->inte &= ~0x2;
+    }
+    if (!(m->p & IDF) && (m->inte & 0x1) == 0x1) {
+        m->irq_ = 1;
+        m->inte &= ~0x1;
+    }
 }
-
-
 
 static int m6502_interrupt_test(m65xx_t* const m) {
-  memset(m->ram, 0, 0x10000);  
-  load_file(m, "tests/6502_interrupt_test.bin", 0xA);
+    memset(m->ram, 0, 0x10000);
+    load_file(m, "tests/6502_interrupt_test.bin", 0xA);
 
-  m65xx_init(m);  
+    m65xx_init(m);
 
-  uint16_t pc_ = 0;
-  set_abus(m, m->pc = 0x400);  
+    uint16_t pc_ = 0;
+    set_abus(m, m->pc = 0x400);
 
-  wb(m, 0xBFFC, 0);
-  while (true) {
-    do { m65xx_run(m); } while (!(m->pins & SYNC));
-    m6502_print(m);
-
-    m->inte = rb(m, 0xBFFC);
-    m6502_interrupt_handler(m);
-    wb(m, 0xBFFC, m->inte);
-
-    if (pc_ == m->pc) { 
-      if(m->pc == 0x06F5) {
-        printf("6502 Interrupt test passed!\n");
-        break;
-      }
-      printf("6502 Interrupt test failed!\n");
-      break;
+    wb(m, 0xBFFC, 0);
+    
+    while (true) {
+        do {
+            m65xx_run(m);
+        } while (!(m->pins & SYNC));
+        
+        m6502_print(m);
+        
+        m->inte = rb(m, 0xBFFC);
+        m6502_interrupt_handler(m);
+        wb(m, 0xBFFC, m->inte);
+        
+        if (pc_ == m->pc) {
+            if (m->pc == 0x06F5) {
+                printf("6502 Interrupt test passed!\n");
+                break;
+            }
+            printf("6502 Interrupt test failed!\n");
+            break;
+        }
+        pc_ = m->pc;
     }
-    pc_ = m->pc;
-  }
-  return 0;
+    return 0;
 }
-
 int main(void) {
   m65xx_t m;
   tomharte_t t;
