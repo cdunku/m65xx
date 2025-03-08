@@ -844,7 +844,7 @@ static inline void brk(m65xx_t* const m) {
 static inline void nmi(m65xx_t* const m) {
   switch (m->tcu) {
     case 1:
-      set_abus(m, m->pc++);
+      set_abus(m, m->pc);
       break;
     case 2:
       off(m, RW);
@@ -886,7 +886,7 @@ static inline void irq(m65xx_t* const m) {
 
         return;
       }
-      set_abus(m, m->pc++);
+      set_abus(m, m->pc);
       break;
     case 2:
       off(m, RW);
@@ -1672,6 +1672,7 @@ static inline void isc(m65xx_t* const m) {
 static inline void jam(m65xx_t* const m) {
   set_dbus(m, 0xFF);
   m->halt = 1;
+  m->pc--;
 }
 
 /*
@@ -1958,7 +1959,6 @@ void m65xx_init(m65xx_t* const m) {
   m->a = m->x = m->y = m->p = m->tcu = 0;
   m->s = 0xFD;
   m->p |= 0x20;
-
   m->ir = 0x00; 
   m->pc = m->ad = 0;
   m->bra = 0;
