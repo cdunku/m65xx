@@ -1981,7 +1981,7 @@ static inline void m65xx_tick(m65xx_t* const m) {
   if((m->pins & IRQ) && !(m->p & IDF)) { m->irq_ = 1; } else { m->irq_ = 0; }
 */
   if(m->pins & SYNC) {
-    m->ir = get_dbus(m);
+    // m->ir = get_dbus(m);
     off(m, SYNC);
     if(m->nmi_) {
       m->ir = NMI_OPCODE;
