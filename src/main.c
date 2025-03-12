@@ -123,7 +123,6 @@ void load_tomharte(m65xx_t* const m, tomharte_t* const t, const char *file) {
   json_decref(root);
 }
 
-
 static int load_file(m65xx_t* const m, const char *file, uint16_t addr) {
   FILE *f = fopen(file, "rb");
   if(f == NULL) {
