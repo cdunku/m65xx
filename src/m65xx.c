@@ -2000,12 +2000,12 @@ static inline void m65xx_tick(m65xx_t* const m) {
 }
 
 void m65xx_run(m65xx_t* const m) {
+
+  m65xx_tick(m);
   if (m->pins & RW) {  // Read 
     set_dbus(m, rb(m, get_abus(m)));
   }
-  m65xx_tick(m);
-
-  if (!(m->pins & RW)) {  // Write  
+  else {  // Write  
     wb(m, get_abus(m), get_dbus(m));    
   }
 }
