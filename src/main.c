@@ -20,10 +20,10 @@ typedef struct {
 static inline uint8_t rb(m65xx_t* const m, uint16_t addr) { return m->ram[addr]; }
 static inline void wb(m65xx_t* const m, uint16_t addr, uint8_t data) { m->ram[addr] = data; }
 static inline void set_abus(m65xx_t* const m, uint16_t addr) { 
-  m->pins = (m->pins & ~0xFFFFULL) | (addr & 0xFFFF);
+    m->pins = (m->pins & ~0xFFFFULL) | (addr & 0xFFFF);
 }
-static inline uint16_t get_abus(m65xx_t* const m) { return (m->pins & 0xFFFF); }
-static inline uint8_t get_dbus(m65xx_t* const m) { return ((m->pins & 0xFF0000) >> 16); }
+static inline uint16_t get_abus(m65xx_t* const m) { return (m->save_old & 0xFFFF); }
+static inline uint8_t get_dbus(m65xx_t* const m) { return ((m->pins >> DATA_PINS) & 0xFF); }
 
 
 void load_tomharte(m65xx_t* const m, tomharte_t* const t, const char *file) {
@@ -100,42 +100,48 @@ void load_tomharte(m65xx_t* const m, tomharte_t* const t, const char *file) {
         printf("Starting CPU test with %zu expected cycles...\n", expected_cyc_count);
 
         for (size_t i = 0; i < expected_cyc_count; i++) {
+            m65xx_run(m);
             json_t *cycle = json_array_get(cycles, i);
-            if (!json_is_array(cycle) || json_array_size(cycle) < 3) {
+            if (!json_is_array(cycle)) {
                 printf("Error: Invalid cycle data at index %zu\n", i);
                 continue;
             }
-
             uint16_t expected_addr = json_integer_value(json_array_get(cycle, 0));
             uint8_t expected_value = json_integer_value(json_array_get(cycle, 1));
             const char* expected_action = json_string_value(json_array_get(cycle, 2));
-
-            // Run a single cycle
-            m65xx_run(m);
-
-            // Fetch actual bus values after the operation
             uint16_t actual_address = get_abus(m);
-            uint8_t actual_value = get_dbus(m);
+            uint8_t actual_value = get_dbus(m); 
+            // Run a single cycle
 
             // Determine read/write operation
-            strncpy(bus_operation, (m->pins & RW) ? "read" : "write", 6);
+            strncpy(bus_operation, (m->save_old & RW) ? "read" : "write", 6);
 
             // Print cycle details
-            printf("Cycle %zu: Expected [%04X, %02X, %s], Got [%04X, %02X, %s]\n",
-                   i, expected_addr, expected_value, expected_action,
-                   actual_address, actual_value, bus_operation);
+            
+            //printf("Cycle %zu: Expected [%04X, %02X, %s], Got [%04X, %02X, %s]\n",
+            //       i, expected_addr, expected_value, expected_action,
+            //       actual_address, actual_value, bus_operation);
 
             // Check for mismatches
             if (expected_addr != actual_address) {
+                printf("CYC: %d\n", m->tcu);
                 printf("  Address mismatch! Expected: %04X, Actual: %04X\n", expected_addr, actual_address);
                 match = 0;
             }
             if (strcmp(expected_action, bus_operation) != 0) {
+                printf("CYC: %d\n", m->tcu);
                 printf("  Operation mismatch! Expected: %s, Actual: %s\n", expected_action, bus_operation);
                 match = 0;
             }
+if(expected_action == "write" && expected_addr >= 0x0100 && expected_addr <= 0x01FF){
+    printf("Stack write: Addr: %04X, Expected: %02X, Actual: %02X\n", expected_addr, expected_value, m->ram[expected_addr]);
+}
+            if(expected_value != actual_value) {
+                printf("CYC: %d\n", m->tcu);
+                printf("  Data mismatch! Expected: %02X, Actual: %02X\n", expected_value, actual_value);
+                match = 0;
+      }
         }
-
         // Validate final CPU state
         if (m->pc != t->pc_) { printf("  PC mismatch: expected %04X, got %04X\n", t->pc_, m->pc); match = 0; }
         if (m->a  != t->a_)  { printf("  A mismatch: expected %02X, got %02X\n", t->a_, m->a); match = 0; }

@@ -52,7 +52,7 @@ static const uint16_t IRQ_OPCODE = 0x102;
 
 typedef struct {
   uint8_t ram[0x10000];
-  uint64_t pins;
+  uint64_t pins, save_old;
   uint8_t a, x, y, s, p, tcu;
   uint16_t ir;
   union { struct { uint8_t pcl; uint8_t pch; }; uint16_t pc; };
