@@ -3,24 +3,7 @@
 #include "m65xx.h"
 #include "debug.h"
 
-typedef enum {
-  AM_IMPLIED,
-  AM_IMMEDIATE,
-  AM_ZERO_PAGE,
-  AM_ZERO_PAGE_X,
-  AM_ZERO_PAGE_Y,
-  AM_ABSOLUTE,
-  AM_ABSOLUTE_X,
-  AM_ABSOLUTE_Y,
-  AM_INDIRECT,          
-  AM_INDEXED_INDIRECT,   
-  AM_INDIRECT_INDEXED,   
-  AM_RELATIVE            
-} addressing_mode_t;
-
-typedef struct { const char *fmt; addressing_mode_t mode; uint8_t size; } opcode_info_t;
-
-static const opcode_info_t m6502_opcodes[0x103] = {
+const opcode_info_t m6502_opcodes[0x103] = {
   [0x00] = { "BRK", AM_IMPLIED, 1 },
   [0x01] = { "ORA ($%02X,X)", AM_INDEXED_INDIRECT, 2 },
   [0x02] = { "JAM", AM_IMPLIED, 1 },

@@ -805,44 +805,42 @@ static inline void idym(m65xx_t* const m) {
 // Interrupts
 
 static inline void brk(m65xx_t* const m) {
-    switch (m->tcu) {
-        case 1: // Fetch BRK instruction
-            set_abus(m, m->pc++);  
-            break;
-        case 2: // Push PC high byte (MSB)
-            off(m, RW);
-            set_abus_dbus(m, 0x100 | m->s, m->pch);
-            m->s--; // Decrement AFTER storing
-            break;
-        case 3: // Push PC low byte (LSB)
-            off(m, RW);
-            set_abus_dbus(m, 0x100 | m->s, m->pcl);
-            m->s--; 
-            break;
-        case 4: // Push Processor Status with B flag set
-            off(m, RW);
-            set_abus_dbus(m, 0x100 | m->s, m->p | BF);
-            m->s--; 
-            break;
-        case 5: // Load IRQ vector low byte from 0xFFFE
-            m->p |= IDF; // Set Interrupt Disable Flag *before* jumping
-            set_abus(m, 0xFFFE);
-            break;
-        case 6: // Store low byte of vector to PC, load high byte from 0xFFFF
-            m->pcl = get_dbus(m);
-            set_abus(m, 0xFFFF);
-            break;
-        case 7: // Store high byte, reset TCU, fetch next instruction
-            m->pch = get_dbus(m);
-            m->tcu = 0;
-            m6502_fetch(m);
-            break;
-        default:
-            printf("Error: invalid cycle count for BRK\n");
-            break;
-    }
-}
+  switch (m->tcu) {
+    case 1:
+      set_abus(m, m->pc++);
+      break;
+    case 2:
+      off(m, RW);
+      set_abus_dbus(m, 0x100 | m->s--, m->pch);
+      break;
+    case 3:
+      off(m, RW);
+      set_abus_dbus(m, 0x100 | m->s--, m->pcl);
+      break;
+    case 4:
+      off(m, RW);
+      set_abus_dbus(m, 0x100 | m->s--, m->p | BF);
+      break;
+    case 5:
+      set_abus(m, 0xFFFE);
+      break;
+    case 6:
+      m->p |= IDF;
 
+      m->pcl = get_dbus(m);
+      set_abus(m, 0xFFFF);
+      break;
+    case 7:
+      m->pch = get_dbus(m);
+
+      m->tcu = 0;
+      m6502_fetch(m);
+      break;
+    default:
+      printf("Error: invalid cycle count for brk\n");
+      break;
+  }
+}
 static inline void nmi(m65xx_t* const m) {
   switch (m->tcu) {
     case 1:
@@ -2001,25 +1999,15 @@ static inline void m65xx_tick(m65xx_t* const m) {
   m6502_opcode_table[m->ir].mode(m);
 }
 void m65xx_run(m65xx_t* const m) {
-    if (m->tcu == 0) {  // Fetch new instruction if necessary
+    if (m->tcu == 0) { // Begin a new opcode fetch.
         m6502_fetch(m);
     }
+    m->save_old = m->pins;  // Save current cycle's state *after* the write
 
-    uint16_t current_abus = get_abus(m);  // Capture address at the start
-
-    if (!(m->pins & RW)) { 
-        wb(m, current_abus, get_dbus(m));  // Write operation
-    } else { 
-        set_dbus(m, rb(m, current_abus));  // Read operation
-    }
-printf(
-    "CYC: %d | PC: %04X | A: %02X | X: %02X | Y: %02X | SP: %02X | P: %02X | ABUS: %04X | DBUS: %02X | RW: %d\n",
-    m->tcu, m->pc, m->a, m->x, m->y, m->s, m->p, get_abus(m), get_dbus(m), (m->pins & RW) ? 1 : 0
-);
-
-    m->save_old = m->pins;  // Move save_old update *after* using it
-
-    m65xx_tick(m);  // Move to the next cycle
+if (!(m->pins & RW)) {
+    wb(m, get_abus(m), get_dbus(m)); // Write operation
+} else {
+    set_dbus(m, rb(m, get_abus(m))); // Read operation
 }
-
-
+    m65xx_tick(m);
+}
