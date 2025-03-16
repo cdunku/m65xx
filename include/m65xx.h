@@ -70,6 +70,6 @@ typedef struct {
 typedef struct { void (*mode)(m65xx_t*); void (*instr)(m65xx_t*); } m65xx_opcodes_t;
 extern m65xx_opcodes_t m6502_opcode_table[0x103];
 
-void m65xx_run(m65xx_t* const m);
+void m65xx_tick(m65xx_t* const m);
 void m65xx_init(m65xx_t* const m);
 

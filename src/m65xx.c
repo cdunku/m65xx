@@ -1670,8 +1670,9 @@ static inline void isc(m65xx_t* const m) {
 
 
 static inline void jam(m65xx_t* const m) {
-  set_dbus(m, 0xFF);
+  // set_dbus(m, 0xFF);
   // m->halt = 1;
+  (void) m;
 }
 
 /*
@@ -1970,7 +1971,7 @@ void m65xx_init(m65xx_t* const m) {
 void m65xx_on(m65xx_t* const m);
 void m65xx_reset(m65xx_t* const m);
 
-static inline void m65xx_tick(m65xx_t* const m) {
+void m65xx_tick(m65xx_t* const m) {
   if(m->halt) { return; }
 
   on(m, RW);
@@ -1997,17 +1998,4 @@ static inline void m65xx_tick(m65xx_t* const m) {
   m->cpu_clock++;
   // Call instruction/addressing mode 
   m6502_opcode_table[m->ir].mode(m);
-}
-void m65xx_run(m65xx_t* const m) {
-    if (m->tcu == 0) { // Begin a new opcode fetch.
-        m6502_fetch(m);
-    }
-    m->save_old = m->pins;  // Save current cycle's state *after* the write
-
-if (!(m->pins & RW)) {
-    wb(m, get_abus(m), get_dbus(m)); // Write operation
-} else {
-    set_dbus(m, rb(m, get_abus(m))); // Read operation
-}
-    m65xx_tick(m);
 }
