@@ -401,6 +401,8 @@ static inline void absm(m65xx_t* const m) {
   }
 }
 
+/*
+// Check whether if this code is valid and make changes so it fits the aesthetic 
 static inline void abxr(m65xx_t* const m) {
   switch (m->tcu) {
     case 1:
@@ -433,6 +435,7 @@ static inline void abxr(m65xx_t* const m) {
       break; 
   }
 }
+*/
 static inline void abxw(m65xx_t* const m) {
   switch (m->tcu) {
     case 1:
@@ -706,7 +709,6 @@ static inline void idyr(m65xx_t* const m) {
     case 4:
       m->adh = get_dbus(m);
       if(m->adh != ((m->ad + m->y) >> 8)) {
-        m->cpu_clock++;
         set_abus(m, m->ad + m->y);
         break;
       }
