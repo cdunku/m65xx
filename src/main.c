@@ -31,7 +31,7 @@ static inline void set_dbus(m65xx_t* const m, uint8_t data) {
 }
 static inline uint16_t get_abus(m65xx_t* const m) { return (m->pins & 0xFFFF); }
 static inline uint8_t get_dbus(m65xx_t* const m) { return ((m->pins & 0xFF0000) >> 16); }
-/*
+
 static void m65xx_json_tests(m65xx_t* const m, const char *file) {
   json_error_t error;
   json_t *root = json_load_file(file, 0, &error);
@@ -41,7 +41,6 @@ static void m65xx_json_tests(m65xx_t* const m, const char *file) {
   }
 
   size_t passed = 0, failed = 0;
-  bool match = 1;
 
   size_t ntests = json_array_size(root);
 
@@ -53,113 +52,7 @@ static void m65xx_json_tests(m65xx_t* const m, const char *file) {
       failed++;
     }
 
-    const char *name = json_string_value(json_object_get(test, "name"));
-    json_t *initial = json_object_get(test, "initial");
-    json_t* final = json_object_get(test, "final");
-
-    m65xx_init(m);
-
-    m->pc = json_integer_value(json_object_get(initial, "pc"));
-    m->a = json_integer_value(json_object_get(initial, "a"));
-    m->x = json_integer_value(json_object_get(initial, "x"));
-    m->y = json_integer_value(json_object_get(initial, "y"));
-    m->s = json_integer_value(json_object_get(initial, "s"));
-    m->p = json_integer_value(json_object_get(initial, "p"));
-
-    json_t *ram = json_object_get(initial, "ram");
-    if (json_is_array(ram)) {
-      size_t ram_size = json_array_size(ram);
-      for (size_t j = 0; j < ram_size; j++) {
-        json_t *entry = json_array_get(ram, j);
-        if (json_is_array(entry) && json_array_size(entry) == 2) {
-          uint16_t ram_address = json_integer_value(json_array_get(entry, 0));
-          uint8_t ram_data = json_integer_value(json_array_get(entry, 1));
-          m->ram[ram_address] = ram_data;
-        }
-      }
-    }
-    
-    set_abus(m, m->pc);
-
-    do { m65xx_run(m); } while(!(m->pins & SYNC));
-
-    registers_json_t t;
-
-
-    t.pc_ = json_integer_value(json_object_get(final, "pc"));
-    t.a_ = json_integer_value(json_object_get(final, "a"));
-    t.x_ = json_integer_value(json_object_get(final, "x"));
-    t.y_ = json_integer_value(json_object_get(final, "y"));
-    t.s_ = json_integer_value(json_object_get(final, "s"));
-    t.p_ = json_integer_value(json_object_get(final, "p"));
-
-    if (m->pc != t.pc_) {
-      printf("Error: PC mismatch in test %s | Actual: %04X | Expected: %04X\n", name, m->pc, t.pc_);
-      match = 0;
-    }
-    if (m->a != t.a_) {
-      printf("Error: A mismatch in test %s | Actual: %02X | Expected: %02X\n", name, m->a, t.a_);
-      match = 0;
-    }
-    if (m->x != t.x_) {
-      printf("Error: X mismatch in test %s | Actual: %02X | Expected: %02X\n", name, m->x, t.x_);
-      match = 0;
-    }
-    if (m->y != t.y_) {
-      printf("Error: Y mismatch in test %s | Actual: %02X | Expected: %02X\n", name, m->y, t.y_);
-      match = 0;
-    }
-    if (m->s != t.s_) {
-      printf("Error: S mismatch in test %s | Actual: %02X | Expected: %02X\n", name, m->s, t.s_);
-      match = 0;
-    }
-    if (m->p != t.p_) {
-      printf("Error: P mismatch in test %s | Actual: %02X | Expected: %02X\n", name, m->p, t.p_);
-      match = 0;
-    }
-
-    json_t *fram = json_object_get(final, "ram");
-    if (json_is_array(fram)) {
-      size_t fram_size = json_array_size(fram);
-      for (size_t k = 0; k < fram_size; k++) {
-        json_t *entry = json_array_get(fram, k);
-        if (json_is_array(entry) && json_array_size(entry) == 2) {
-          uint16_t expected_addr = json_integer_value(json_array_get(entry, 0));
-          uint8_t expected_data = json_integer_value(json_array_get(entry, 1));
-          uint8_t actual_data = m->ram[expected_addr];
-          if (actual_data != expected_data) {
-            printf("Error: RAM mismatch at %04X | Actual: %02X | Expected: %02X\n", expected_addr, actual_data, expected_data);
-          }
-        }
-      }
-    }
-    if (match) { passed++; } else { failed++; }
-  }
-  printf("Opcode: 0x%02X | Tests passed: %zu, Tests failed: %zu\n", m->ir, passed, failed);
-  json_decref(root);
-} 
-*/
-
-static void m65xx_json_tests(m65xx_t* const m, const char *file) {
-  json_error_t error;
-  json_t *root = json_load_file(file, 0, &error);
-  if(!root) {
-    fprintf(stderr, "Error: failed to parse %s (%s at line %d)\n", file, error.text, error.line);
-    return;
-  }
-
-  size_t passed = 0, failed = 0;
-  bool match = 1;
-
-  size_t ntests = json_array_size(root);
-
-  for(size_t i = 0; i < ntests; i++) {
-    json_t *test = json_array_get(root, i);
-
-    if(!json_is_object(test)) {
-      fprintf(stderr, "Error: test case at %zu is not valid\n", i);
-      failed++;
-    }
+    bool match = 1;
 
     const char *name = json_string_value(json_object_get(test, "name"));
     json_t *initial = json_object_get(test, "initial");
@@ -204,12 +97,11 @@ static void m65xx_json_tests(m65xx_t* const m, const char *file) {
       cycle[k].data = json_integer_value(json_array_get(cyclei, 1));
       strncpy(cycle[k].rw, json_string_value(json_array_get(cyclei, 2)), sizeof(cycle[k].rw) - 1);
       cycle[k].rw[sizeof(cycle[k].rw) - 1] = '\0';
-
       uint16_t addr = get_abus(m);
       uint8_t data = get_dbus(m);
 
       if(!(m->pins & RW)) {
-        m->ram[addr] = data;
+        m->ram[get_abus(m)] = get_dbus(m);
       }
 
       m65xx_tick(m);
@@ -236,7 +128,7 @@ static void m65xx_json_tests(m65xx_t* const m, const char *file) {
       data = get_dbus(m);
 
       if(m->pins & RW) {
-        set_dbus(m, m->ram[addr]);
+        set_dbus(m, m->ram[get_abus(m)]);
       }
     }
 
@@ -500,7 +392,7 @@ int main(void) {
 
   printf("Starting 6502 test...\n");
 
-  m65xx_json_tests(&m, "tests/6502/v1/02.json");
+  m65xx_json_tests(&m, "tests/6502/v1/93.json");
   // allsuiteasm(&m);
   // m6502_functional_test(&m);
   // m6502_timing_test(&m);

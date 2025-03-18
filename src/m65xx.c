@@ -28,7 +28,7 @@ static inline uint16_t get_abus(m65xx_t* const m) { return (m->pins & 0xFFFF); }
 static inline uint8_t get_dbus(m65xx_t* const m) { return ((m->pins & 0xFF0000) >> 16); }
 
 static inline void set_nz(m65xx_t* const m, uint8_t data) {
-  if(data & 0x80) { m->p |= NF; } else { m->p &= ~NF; }
+  if((data & 0x80) >> 7) { m->p |= NF; } else { m->p &= ~NF; }
   if(data == 0) { m->p |= ZF; } else { m->p &= ~ZF; }
 } 
 
@@ -412,12 +412,7 @@ static inline void abxr(m65xx_t* const m) {
       break;
     case 3:
       m->adh = get_dbus(m);
-      if(((m->adl + m->x) & 0xFF00) != 0) {
-        set_abus(m, m->adh | ((m->adl + m->x) & 0xFF));
-        break;
-      }
-      set_abus(m, m->ad + m->x);
-      m->tcu++;
+      if (~(m->adh - ((m->ad + m->x) >> 8)) & 0x1) { m->tcu++; break; }
       break;
     case 4:
       set_abus(m, m->ad + m->x);
@@ -505,12 +500,9 @@ static inline void abyr(m65xx_t* const m) {
       break;
     case 3:
       m->adh = get_dbus(m);
-      if(((m->adl + m->y) & 0xFF00) != 0) {
-        set_abus(m, m->adh | ((m->adl + m->y) & 0xFF));
-        break;
-      }
-      set_abus(m, m->ad + m->y);
-      m->tcu++;
+
+      set_abus(m, (m->adh << 8) | ((m->adl + m->y) & 0xFF));
+      if (~(m->adh - ((m->ad + m->y) >> 8)) & 0x1) { m->tcu++; break; }
       break;
     case 4:
       set_abus(m, m->ad + m->y);
@@ -705,16 +697,18 @@ static inline void idyr(m65xx_t* const m) {
       break;
     case 4:
       m->adh = get_dbus(m);
-      if(m->adh != ((m->ad + m->y) >> 8)) {
-        m->cpu_clock++;
+      if (~(m->adh - ((m->ad + m->y) >> 8)) & 0x1) { 
+        m->tcu++;       
         set_abus(m, m->ad + m->y);
-        break;
+        break; 
       }
-      set_abus(m, (m->adh << 8) | ((m->adl + m->y) & 0xFF));
+      set_abus(m, (m->ad & 0xFF00) | ((m->ad + m->y) & 0xFF));
       break;
     case 5:
+      set_abus(m, m->ad + m->y);
+      break;
+    case 6:
       m6502_opcode_table[m->ir].instr(m); 
-
       m->tcu = 0;
       m6502_fetch(m);
       break;
@@ -1570,11 +1564,11 @@ static inline void ane(m65xx_t* const m) {
 
 static inline void sha(m65xx_t* const m) {
   if(m->adh != (get_abus(m) >> 8)) {
-    set_dbus(m, m->a & m->x & m->adh & 0xFF);
+    set_dbus(m, m->a & m->x & m->adh);
     set_abus(m, (get_dbus(m) << 8) | m->adl);
   }
   else {
-    set_dbus(m, m->a & m->x & (m->adh + 1) & 0xFF);
+    set_dbus(m, m->a & m->x & (m->adh + 1));
   }
 }
 static inline void tas(m65xx_t* const m) {
@@ -1670,7 +1664,8 @@ static inline void isc(m65xx_t* const m) {
 
 
 static inline void jam(m65xx_t* const m) {
-  // set_dbus(m, 0xFF);
+  set_abus(m, 0xFFFF);
+  set_dbus(m, 0xFF);
   // m->halt = 1;
   (void) m;
 }
