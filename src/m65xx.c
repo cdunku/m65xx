@@ -401,6 +401,8 @@ static inline void absm(m65xx_t* const m) {
   }
 }
 
+/*
+// Check whether if this code is valid and make changes so it fits the aesthetic 
 static inline void abxr(m65xx_t* const m) {
   switch (m->tcu) {
     case 1:
@@ -428,6 +430,7 @@ static inline void abxr(m65xx_t* const m) {
       break; 
   }
 }
+*/
 static inline void abxw(m65xx_t* const m) {
   switch (m->tcu) {
     case 1:
@@ -697,8 +700,12 @@ static inline void idyr(m65xx_t* const m) {
       break;
     case 4:
       m->adh = get_dbus(m);
+<<<<<<< HEAD
       if (~(m->adh - ((m->ad + m->y) >> 8)) & 0x1) { 
         m->tcu++;       
+=======
+      if(m->adh != ((m->ad + m->y) >> 8)) {
+>>>>>>> 63ae6efa5777a35d4fed5109564ba1114603dcff
         set_abus(m, m->ad + m->y);
         break; 
       }
