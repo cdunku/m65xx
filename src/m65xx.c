@@ -1564,11 +1564,11 @@ static inline void ane(m65xx_t* const m) {
 
 static inline void sha(m65xx_t* const m) {
   if(m->adh != (get_abus(m) >> 8)) {
-    set_dbus(m, m->a & m->x & m->adh);
-    set_abus(m, (get_dbus(m) << 8) | m->adl);
+    set_dbus(m, (m->a & m->x & (m->adh + 1) & 0xFF));
+    set_abus(m, (get_dbus(m) << 8) | ((m->adl + m->y) & 0xFF));
   }
   else {
-    set_dbus(m, m->a & m->x & (m->adh + 1));
+    set_dbus(m, (m->a & m->x & (m->adh + 1) & 0xFF));
   }
 }
 static inline void tas(m65xx_t* const m) {
@@ -1826,7 +1826,7 @@ m65xx_opcodes_t m6502_opcode_table[0x103] = {
   [0x90] =  { .mode = rela, .instr = bcc },
   [0x91] =  { .mode = idyw, .instr = sta },
   [0x92] =  { .mode = impl, .instr = jam },
-  [0x93] =  { .mode = idyw, .instr = sha }, // ?
+  [0x93] =  { .mode = idyw, .instr = sha },
   [0x94] =  { .mode = zpxw, .instr = sty },
   [0x95] =  { .mode = zpxw, .instr = sta },
   [0x96] =  { .mode = zpyw, .instr = stx },
