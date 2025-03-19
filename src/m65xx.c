@@ -412,6 +412,7 @@ static inline void abxr(m65xx_t* const m) {
       break;
     case 3:
       m->adh = get_dbus(m);
+      set_abus(m, (m->adh << 8) | ((m->adl + m->x) & 0xFF));
       if (~(m->adh - ((m->ad + m->x) >> 8)) & 0x1) { m->tcu++; break; }
       break;
     case 4:
@@ -1664,10 +1665,31 @@ static inline void isc(m65xx_t* const m) {
 
 
 static inline void jam(m65xx_t* const m) {
-  set_abus(m, 0xFFFF);
-  set_dbus(m, 0xFF);
-  // m->halt = 1;
-  (void) m;
+  switch (m->tcu) {
+    case 1:
+      set_abus(m, m->pc);
+      break;
+    case 2:
+      set_abus(m, 0xFFFF);
+      break;
+    case 3:
+      set_abus(m, 0xFFFE);
+      break;
+    case 4:
+      set_abus(m, 0xFFFE);
+      break;
+    case 5:
+      set_abus(m, 0xFFFF);
+      if(m->pins & RES) { 
+        m->jam = 0;
+        
+        m->tcu = 0;
+        m->ir = RES_OPCODE;
+        off(m, SYNC);
+      }
+      else { m->jam = 1; }
+      break;
+  }
 }
 
 /*
@@ -1681,7 +1703,7 @@ static inline void jam(m65xx_t* const m) {
 m65xx_opcodes_t m6502_opcode_table[0x103] = {
   [0x00] =  { .mode = brk, .instr = impl },
   [0x01] =  { .mode = idxr, .instr = ora },
-  [0x02] =  { .mode = impl, .instr = jam },
+  [0x02] =  { .mode = jam, .instr = impl },
   [0x03] =  { .mode = idxm, .instr = slo },
   [0x04] =  { .mode = zpgr, .instr = nop },
   [0x05] =  { .mode = zpgr, .instr = ora },
@@ -1697,7 +1719,7 @@ m65xx_opcodes_t m6502_opcode_table[0x103] = {
   [0x0F] =  { .mode = absm, .instr = slo },
   [0x10] =  { .mode = rela, .instr = bpl },
   [0x11] =  { .mode = idyr, .instr = ora },
-  [0x12] =  { .mode = impl, .instr = jam },
+  [0x12] =  { .mode = jam, .instr = impl },
   [0x13] =  { .mode = idym, .instr = slo },
   [0x14] =  { .mode = zpxr, .instr = nop },
   [0x15] =  { .mode = zpxr, .instr = ora },
@@ -1713,7 +1735,7 @@ m65xx_opcodes_t m6502_opcode_table[0x103] = {
   [0x1F] =  { .mode = abxm, .instr = slo },
   [0x20] =  { .mode = jsr, .instr = impl },
   [0x21] =  { .mode = idxr, .instr = and },
-  [0x22] =  { .mode = impl, .instr = jam },
+  [0x22] =  { .mode = jam, .instr = impl },
   [0x23] =  { .mode = idxm, .instr = rla },
   [0x24] =  { .mode = zpgr, .instr = bit },
   [0x25] =  { .mode = zpgr, .instr = and },
@@ -1729,7 +1751,7 @@ m65xx_opcodes_t m6502_opcode_table[0x103] = {
   [0x2F] =  { .mode = absm, .instr = rla },
   [0x30] =  { .mode = rela, .instr = bmi },
   [0x31] =  { .mode = idyr, .instr = and },
-  [0x32] =  { .mode = impl, .instr = jam },
+  [0x32] =  { .mode = jam, .instr = impl },
   [0x33] =  { .mode = idym, .instr = rla },
   [0x34] =  { .mode = zpxr, .instr = nop },
   [0x35] =  { .mode = zpxr, .instr = and },
@@ -1745,7 +1767,7 @@ m65xx_opcodes_t m6502_opcode_table[0x103] = {
   [0x3F] =  { .mode = abxm, .instr = rla },
   [0x40] =  { .mode = rti, .instr = impl },
   [0x41] =  { .mode = idxr, .instr = eor },
-  [0x42] =  { .mode = impl, .instr = jam },
+  [0x42] =  { .mode = jam, .instr = impl },
   [0x43] =  { .mode = idxm, .instr = sre },
   [0x44] =  { .mode = zpgr, .instr = nop },
   [0x45] =  { .mode = zpgr, .instr = eor },
@@ -1761,7 +1783,7 @@ m65xx_opcodes_t m6502_opcode_table[0x103] = {
   [0x4F] =  { .mode = absm, .instr = sre },
   [0x50] =  { .mode = rela, .instr = bvc },
   [0x51] =  { .mode = idyr, .instr = eor },
-  [0x52] =  { .mode = impl, .instr = jam },
+  [0x52] =  { .mode = jam, .instr = impl },
   [0x53] =  { .mode = idym, .instr = sre },
   [0x54] =  { .mode = zpxr, .instr = nop },
   [0x55] =  { .mode = zpxr, .instr = eor },
@@ -1777,7 +1799,7 @@ m65xx_opcodes_t m6502_opcode_table[0x103] = {
   [0x5F] =  { .mode = abxm, .instr = sre },
   [0x60] =  { .mode = rts, .instr = impl },
   [0x61] =  { .mode = idxr, .instr = adc },
-  [0x62] =  { .mode = impl, .instr = jam },
+  [0x62] =  { .mode = jam, .instr = impl },
   [0x63] =  { .mode = idxm, .instr = rra },
   [0x64] =  { .mode = zpgr, .instr = nop },
   [0x65] =  { .mode = zpgr, .instr = adc },
@@ -1793,7 +1815,7 @@ m65xx_opcodes_t m6502_opcode_table[0x103] = {
   [0x6F] =  { .mode = absm, .instr = rra },
   [0x70] =  { .mode = rela, .instr = bvs },
   [0x71] =  { .mode = idyr, .instr = adc },
-  [0x72] =  { .mode = impl, .instr = jam },
+  [0x72] =  { .mode = jam, .instr = impl },
   [0x73] =  { .mode = idym, .instr = rra },
   [0x74] =  { .mode = zpxr, .instr = nop },
   [0x75] =  { .mode = zpxr, .instr = adc },
@@ -1825,7 +1847,7 @@ m65xx_opcodes_t m6502_opcode_table[0x103] = {
   [0x8F] =  { .mode = absw, .instr = sax },
   [0x90] =  { .mode = rela, .instr = bcc },
   [0x91] =  { .mode = idyw, .instr = sta },
-  [0x92] =  { .mode = impl, .instr = jam },
+  [0x92] =  { .mode = jam, .instr = impl },
   [0x93] =  { .mode = idyw, .instr = sha },
   [0x94] =  { .mode = zpxw, .instr = sty },
   [0x95] =  { .mode = zpxw, .instr = sta },
@@ -1857,7 +1879,7 @@ m65xx_opcodes_t m6502_opcode_table[0x103] = {
   [0xAF] =  { .mode = absr, .instr = lax },
   [0xB0] =  { .mode = rela, .instr = bcs },
   [0xB1] =  { .mode = idyr, .instr = lda },
-  [0xB2] =  { .mode = impl, .instr = jam },
+  [0xB2] =  { .mode = jam, .instr = impl },
   [0xB3] =  { .mode = idyr, .instr = lax },
   [0xB4] =  { .mode = zpxr, .instr = ldy },
   [0xB5] =  { .mode = zpxr, .instr = lda },
@@ -1889,7 +1911,7 @@ m65xx_opcodes_t m6502_opcode_table[0x103] = {
   [0xCF] =  { .mode = absm, .instr = dcp },
   [0xD0] =  { .mode = rela, .instr = bne },
   [0xD1] =  { .mode = idyr, .instr = cmp },
-  [0xD2] =  { .mode = impl, .instr = jam },
+  [0xD2] =  { .mode = jam, .instr = impl },
   [0xD3] =  { .mode = idym, .instr = dcp },
   [0xD4] =  { .mode = zpxr, .instr = nop },
   [0xD5] =  { .mode = zpxr, .instr = cmp },
@@ -1921,7 +1943,7 @@ m65xx_opcodes_t m6502_opcode_table[0x103] = {
   [0xEF] =  { .mode = absm, .instr = isc },
   [0xF0] =  { .mode = rela, .instr = beq },
   [0xF1] =  { .mode = idyr, .instr = sbc },
-  [0xF2] =  { .mode = impl, .instr = jam },
+  [0xF2] =  { .mode = jam, .instr = impl },
   [0xF3] =  { .mode = idym, .instr = isc },
   [0xF4] =  { .mode = zpxr, .instr = nop },
   [0xF5] =  { .mode = zpxr, .instr = sbc },
@@ -1961,14 +1983,13 @@ void m65xx_init(m65xx_t* const m) {
 
   m->inte = 0;
   m->cpu_clock = 0;
-  m->halt = m->nmi_edge = m->nmi_ = m->irq_ = 0;
+  m->jam = m->nmi_edge = m->nmi_ = m->irq_ = 0;
 }
 void m65xx_on(m65xx_t* const m);
 void m65xx_reset(m65xx_t* const m);
 
 void m65xx_tick(m65xx_t* const m) {
-  if(m->halt) { return; }
-
+  // if(m->jam) { return; }
   on(m, RW);
 /*
   if((m->pins & NMI) && !(m->nmi_edge)) { m->nmi_ = 1; }

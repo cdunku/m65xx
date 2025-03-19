@@ -61,7 +61,7 @@ typedef struct {
   uint64_t cpu_clock;
 
   // nmi_edge holds the edge case value, nmi_ executes a non-maskable interrupt.
-  bool nmi_edge, nmi_, irq_, halt;
+  bool nmi_edge, nmi_, irq_, jam;
 
   bool first_reset;
   uint8_t inte;

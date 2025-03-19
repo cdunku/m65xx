@@ -392,7 +392,7 @@ int main(void) {
 
   printf("Starting 6502 test...\n");
 
-  m65xx_json_tests(&m, "tests/6502/v1/b3.json");
+  m65xx_json_tests(&m, "tests/6502/v1/f2.json");
   // allsuiteasm(&m);
   // m6502_functional_test(&m);
   // m6502_timing_test(&m);
