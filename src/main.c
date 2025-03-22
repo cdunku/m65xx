@@ -3,26 +3,39 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <time.h>
+#include <ncurses.h>
 
 #include <jansson.h>
 
 #include "m65xx.h"
 #include "debug.h"
 
-void m65xx_init(m65xx_t* const m);
+/*
+ *
+ *
+ * 6502 tests
+ *
+ *
+*/ 
+
+// Structs for the TomHarte JSON tests
 
 typedef struct {
   uint16_t pc_;
   uint8_t a_, x_, y_, s_, p_;
 } registers_json_t;
+
 typedef struct {
   uint16_t addr;
   uint8_t data;
   char rw[6];
 } cycles_json_t;
 
+// Helper functions
+
 static inline uint8_t rb(m65xx_t* const m, uint16_t addr) { return m->ram[addr]; }
 static inline void wb(m65xx_t* const m, uint16_t addr, uint8_t data) { m->ram[addr] = data; }
+
 static inline void set_abus(m65xx_t* const m, uint16_t addr) { 
   m->pins = (m->pins & ~0xFFFFULL) | (addr & 0xFFFF);
 }
@@ -31,6 +44,8 @@ static inline void set_dbus(m65xx_t* const m, uint8_t data) {
 }
 static inline uint16_t get_abus(m65xx_t* const m) { return (m->pins & 0xFFFF); }
 static inline uint8_t get_dbus(m65xx_t* const m) { return ((m->pins & 0xFF0000) >> 16); }
+
+// Functions for testing the emulator
 
 static int m65xx_json_tests(m65xx_t* const m, const char *file) {
   json_error_t error;
@@ -81,8 +96,7 @@ static int m65xx_json_tests(m65xx_t* const m, const char *file) {
     }
  
     set_abus(m, m->pc);
-    m->tcu = 0;
-    m->pins |= (SYNC | RW);
+
     set_dbus(m, m->ram[json_integer_value(json_object_get(initial, "pc"))]);
 
     json_t *cycles = json_object_get(test, "cycles");
@@ -218,8 +232,6 @@ static int load_file(m65xx_t* const m, const char *file, uint16_t addr) {
   return 0;
 }
 
-
-
 static int allsuiteasm(m65xx_t* const m) {
   memset(m->ram, 0, 0x10000);
 
@@ -250,7 +262,6 @@ static int allsuiteasm(m65xx_t* const m) {
   }
   return 0;
 }
-
 static int m6502_functional_test(m65xx_t* const m) {
   memset(m->ram, 0, 0x10000);
 
@@ -351,7 +362,6 @@ void m6502_interrupt_handler(m65xx_t* const m) {
     inte &= ~0x1;
   }
 }
-
 static int m6502_interrupt_test(m65xx_t* const m) {
   memset(m->ram, 0, 0x10000);
   load_file(m, "tests/6502_interrupt_test.bin", 0xA);
@@ -390,11 +400,29 @@ static int m6502_interrupt_test(m65xx_t* const m) {
   }
   return 0;
 }
+
+/*
+ *
+ *
+ * UI for tests
+ *
+ *
+*/
+
+
+
 int main(void) {
   m65xx_t m;
 
   clock_t start = clock();
   int pass = 0;
+
+  printf("  ____  _____  _____  _____ \n");
+  printf(" / ___||  ___||  _  |/ __  \\\n");
+  printf("/ /___ |___ \\ | |/' |`' / /'\n");
+  printf("| ___ \\    \\ \\|  /| |  / /  \n");
+  printf("| \\_/ |/\\__/ /\\ |_/ /./ /___\n");
+  printf("\\_____/\\____/  \\___/ \\_____/\n");
 
   // Runs all tests at once for TomHarte:
   printf("Starting 6502 test...\n");
@@ -404,7 +432,7 @@ int main(void) {
     pass += m65xx_json_tests(&m, file);
   }
   printf("Tests passed = %d\n", pass);
-
+  
   // For running a test for a specific opcode:
   // Pass: 1 (All tests pass), Pass: 0 (A test has failed)
   /*

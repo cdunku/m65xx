@@ -1959,13 +1959,6 @@ m65xx_opcodes_t m6502_opcode_table[0x103] = {
   [0x102] = { .mode = irq, .instr = impl },
 }; 
 
-static inline uint8_t rb(m65xx_t* const m, uint16_t addr) {
-  return m->ram[addr];
-}
-static inline void wb(m65xx_t* const m, uint16_t addr, uint8_t data) {
-  m->ram[addr] = data;
-}
-
 void m65xx_init(m65xx_t* const m) {
   m->pins = 0;
   m->pins |= (RW | SYNC);
@@ -1979,8 +1972,6 @@ void m65xx_init(m65xx_t* const m) {
   m->cpu_clock = 0;
   m->nmi_edge = m->nmi_ = m->irq_ = 0;
 }
-void m65xx_on(m65xx_t* const m);
-void m65xx_reset(m65xx_t* const m);
 
 void m65xx_tick(m65xx_t* const m) {
   on(m, RW);

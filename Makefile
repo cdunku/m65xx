@@ -1,8 +1,8 @@
 .PHONY: all clean
 
 CC := gcc
-CFLAGS := -O3 -std=c2x -Iinclude/ -ljansson
-LDFLAGS := -ljansson 
+CFLAGS := -O3 -std=c2x -Iinclude/ 
+LDFLAGS := -ljansson -lncurses 
 BIN := m65xx
 
 # Find all .c files in the current directory
@@ -17,7 +17,7 @@ all: $(BIN)
 $(BIN): $(OBJS)
 	@echo "[linking] $(OBJS)"
 	@echo "[produced] $(BIN)"
-	@$(CC) $(LDFLAGS) -o $@ $(OBJS)  
+	@$(CC) -o $@ $(OBJS) $(LDFLAGS)  
 
 # Pattern rule to compile .c files into .o files with individual messages
 %.o: %.c
