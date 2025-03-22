@@ -1,8 +1,8 @@
 .PHONY: all clean
 
 CC := gcc
-CFLAGS := -ggdb -O3 -Wall -Wextra -std=c2x -pedantic -Iinclude/ -fsanitize=address -ljansson
-LDFLAGS := -ljansson `sdl-config --cflags --libs` -fsanitize=address
+CFLAGS := -O3 -std=c2x -Iinclude/ -ljansson
+LDFLAGS := -ljansson 
 BIN := m65xx
 
 # Find all .c files in the current directory

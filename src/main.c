@@ -32,12 +32,12 @@ static inline void set_dbus(m65xx_t* const m, uint8_t data) {
 static inline uint16_t get_abus(m65xx_t* const m) { return (m->pins & 0xFFFF); }
 static inline uint8_t get_dbus(m65xx_t* const m) { return ((m->pins & 0xFF0000) >> 16); }
 
-static void m65xx_json_tests(m65xx_t* const m, const char *file) {
+static int m65xx_json_tests(m65xx_t* const m, const char *file) {
   json_error_t error;
   json_t *root = json_load_file(file, 0, &error);
   if(!root) {
     fprintf(stderr, "Error: failed to parse %s (%s at line %d)\n", file, error.text, error.line);
-    return;
+    return 0;
   }
 
   size_t passed = 0, failed = 0;
@@ -89,7 +89,7 @@ static void m65xx_json_tests(m65xx_t* const m, const char *file) {
     size_t cycles_total = json_array_size(cycles);
    
     cycles_json_t cycle[cycles_total];
-    printf("\nTest: %s\n", name);
+    // printf("\nTest: %s\n", name);
     for(size_t k = 0; k < cycles_total; k++) {
       json_t *cyclei = json_array_get(cycles, k);
 
@@ -185,8 +185,10 @@ static void m65xx_json_tests(m65xx_t* const m, const char *file) {
     }
     if (match) { passed++; } else { failed++; }
   }
-  printf("Opcode: 0x%02X | Tests passed: %zu, Tests failed: %zu\n", m->ir, passed, failed);
+  // printf("Opcode: 0x%02X | Tests passed: %zu, Tests failed: %zu\n", m->ir, passed, failed);
   json_decref(root);
+
+  if((passed % 10000) == 0) { return 1; } else { return 0; }
 }
 
 static int load_file(m65xx_t* const m, const char *file, uint16_t addr) {
@@ -281,6 +283,7 @@ static int m6502_functional_test(m65xx_t* const m) {
   }
     pc_ = m->pc;
   }
+  return 0;
 }
 
 static int m6502_timing_test(m65xx_t* const m) {
@@ -336,14 +339,16 @@ static int m6502_decimal_test(m65xx_t* const m) {
   return 0;
 }
 
+uint8_t inte = 0;
+
 void m6502_interrupt_handler(m65xx_t* const m) {
-  if ((m->inte & 0x2) == 0x2) {
+  if ((inte & 0x2) == 0x2) {
     m->nmi_ = 1;
-    m->inte &= ~0x2;
+    inte &= ~0x2;
     }
-  else if (!(m->p & IDF) && (m->inte & 0x1) == 0x1) {
+  else if (!(m->p & IDF) && (inte & 0x1) == 0x1) {
     m->irq_ = 1;
-    m->inte &= ~0x1;
+    inte &= ~0x1;
   }
 }
 
@@ -369,9 +374,9 @@ static int m6502_interrupt_test(m65xx_t* const m) {
       }
     } while (!(m->pins & SYNC));
 
-    m->inte = rb(m, 0xBFFC);
+    inte = rb(m, 0xBFFC);
     m6502_interrupt_handler(m);
-    wb(m, 0xBFFC, m->inte);
+    wb(m, 0xBFFC, inte);
     
     if (pc_ == m->pc) {
       if (m->pc == 0x06F5) {
@@ -389,15 +394,34 @@ int main(void) {
   m65xx_t m;
 
   clock_t start = clock();
+  int pass = 0;
 
+  // Runs all tests at once for TomHarte:
   printf("Starting 6502 test...\n");
+  for(int i = 0; i < 0x100; i++) {
+    char file[50];
+    snprintf(file, sizeof(file), "tests/6502/v1/%02x.json", i);
+    pass += m65xx_json_tests(&m, file);
+  }
+  printf("Tests passed = %d\n", pass);
 
-  m65xx_json_tests(&m, "tests/6502/v1/f2.json");
-  // allsuiteasm(&m);
-  // m6502_functional_test(&m);
-  // m6502_timing_test(&m);
-  // m6502_decimal_test(&m);
-  // m6502_interrupt_test(&m);
+  // For running a test for a specific opcode:
+  // Pass: 1 (All tests pass), Pass: 0 (A test has failed)
+  /*
+  pass = m65xx_json_tests(&m, "tests/6502/v1/00.json");
+  printf("Pass: %d, opcode: 0x%02X\n", pass, m.ir);
+  */
+
+  // AllSuiteA test
+  allsuiteasm(&m);
+
+  // Timing test for legal opcodes
+  m6502_timing_test(&m);
+
+  // Klaus Dormann test
+  m6502_decimal_test(&m);
+  m6502_functional_test(&m);
+  m6502_interrupt_test(&m);
 
   clock_t end = clock();
 

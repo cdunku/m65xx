@@ -1681,13 +1681,10 @@ static inline void jam(m65xx_t* const m) {
     case 5:
       set_abus(m, 0xFFFF);
       if(m->pins & RES) { 
-        m->jam = 0;
-        
         m->tcu = 0;
         m->ir = RES_OPCODE;
-        off(m, SYNC);
       }
-      else { m->jam = 1; }
+      off(m, SYNC);
       break;
   }
 }
@@ -1970,10 +1967,8 @@ static inline void wb(m65xx_t* const m, uint16_t addr, uint8_t data) {
 }
 
 void m65xx_init(m65xx_t* const m) {
-//  memset(m->ram, 0, 0x10000);
   m->pins = 0;
   m->pins |= (RW | SYNC);
-  m->save_old = m->pins;
   m->a = m->x = m->y = m->p = m->tcu = 0;
   m->s = 0xFD;
   m->p |= 0x20;
@@ -1981,15 +1976,13 @@ void m65xx_init(m65xx_t* const m) {
   m->pc = m->ad = 0;
   m->bra = 0;
 
-  m->inte = 0;
   m->cpu_clock = 0;
-  m->jam = m->nmi_edge = m->nmi_ = m->irq_ = 0;
+  m->nmi_edge = m->nmi_ = m->irq_ = 0;
 }
 void m65xx_on(m65xx_t* const m);
 void m65xx_reset(m65xx_t* const m);
 
 void m65xx_tick(m65xx_t* const m) {
-  // if(m->jam) { return; }
   on(m, RW);
 /*
   if((m->pins & NMI) && !(m->nmi_edge)) { m->nmi_ = 1; }

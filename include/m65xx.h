@@ -52,7 +52,7 @@ static const uint16_t IRQ_OPCODE = 0x102;
 
 typedef struct {
   uint8_t ram[0x10000];
-  uint64_t pins, save_old;
+  uint64_t pins;
   uint8_t a, x, y, s, p, tcu;
   uint16_t ir;
   union { struct { uint8_t pcl; uint8_t pch; }; uint16_t pc; };
@@ -61,10 +61,7 @@ typedef struct {
   uint64_t cpu_clock;
 
   // nmi_edge holds the edge case value, nmi_ executes a non-maskable interrupt.
-  bool nmi_edge, nmi_, irq_, jam;
-
-  bool first_reset;
-  uint8_t inte;
+  bool nmi_edge, nmi_, irq_;
 } m65xx_t;
 
 typedef struct { void (*mode)(m65xx_t*); void (*instr)(m65xx_t*); } m65xx_opcodes_t;
