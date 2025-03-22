@@ -1410,8 +1410,6 @@ static inline void inc(m65xx_t* const m) {
 static inline void iny(m65xx_t* const m) { set_nz(m, ++m->y); }
 static inline void inx(m65xx_t* const m) { set_nz(m, ++m->x); }
 
-static inline void dey(m65xx_t* const m) { set_nz(m, --m->y); }
-static inline void dex(m65xx_t* const m) { set_nz(m, --m->x); }
 static inline void dec(m65xx_t* const m) {
   uint8_t data = get_dbus(m);
   data--;
@@ -1419,6 +1417,9 @@ static inline void dec(m65xx_t* const m) {
 
   set_dbus(m, data);
 }
+static inline void dey(m65xx_t* const m) { set_nz(m, --m->y); }
+static inline void dex(m65xx_t* const m) { set_nz(m, --m->x); }
+
 
 static inline void cmp(m65xx_t* const m) {
   uint16_t data = m->a - get_dbus(m);
