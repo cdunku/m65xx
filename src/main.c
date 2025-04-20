@@ -47,7 +47,7 @@ static inline uint8_t get_dbus(m65xx_t* const m) { return ((m->pins & 0xFF0000) 
 
 // Functions for testing the emulator
 
-static int m65xx_json_tests(m65xx_t* const m, const char *file) {
+static int m65xx_harte_tests(m65xx_t* const m, const char *file) {
   json_error_t error;
   json_t *root = json_load_file(file, 0, &error);
   if(!root) {
@@ -410,46 +410,144 @@ static int m6502_interrupt_test(m65xx_t* const m) {
 */
 
 
+void harte_scr() {
+  clear();
+  refresh();
+
+  int ymax, xmax;
+  getmaxyx(stdscr, ymax, xmax);
+
+  int height = ymax / 2;
+  int width = xmax / 2;
+  int starty = (ymax - height) / 2;
+  int startx = (xmax - width) / 2;
+
+  WINDOW *name = newwin(height, width, starty, startx);
+  box(name, 0, 0);
+
+  const char* ascii_6502[7] = {0};
+  ascii_6502[0] = "  ____  _____  _____  _____ ";
+  ascii_6502[1] = " / ___||  ___||  _  |/ __  \\";
+  ascii_6502[2] = "/ /___ |___ \\ | |/' |`' / /'";
+  ascii_6502[3] = "| ___ \\    \\ \\|  /| |  / /  ";
+  ascii_6502[4] = "| \\_/ |/\\__/ /\\ |_/ /./ /___";
+  ascii_6502[5] = "\\_____/\\____/  \\___/ \\_____/";
+  ascii_6502[6] = '\0';
+
+  size_t ascii_len = sizeof(ascii_6502) / sizeof(ascii_6502[0]);
+
+  for(size_t i = 0; i < ascii_len - 1; i++) {
+    mvwprintw(name, (ymax / 20) + i, (xmax / 5.5), "%s", ascii_6502[i]);
+  }
+  
+
+  mvwprintw(name, (ymax / 20) + 8, xmax / 5.5, "TomHarte 6502 Test Suite");
+  mvwprintw(name, (ymax / 20) + 10, xmax / 5.5, "1) Run a single test file");
+  mvwprintw(name, (ymax / 20) + 11, xmax / 5.5, "2) Run all test files");
+  mvwprintw(name, (ymax / 20) + 13, xmax / 5.5, "(Press q to quit)");
+
+  wrefresh(name); 
+
+  char ch = getch();
+  endwin();
+}
+
+void tests_scr(char option) {
+  clear();
+  refresh();
+}
+
+void menu() {
+  initscr();
+  cbreak();
+  noecho();
+
+  int ymax, xmax;
+  getmaxyx(stdscr, ymax, xmax);
+
+  int height = ymax / 2;
+  int width = xmax / 2;
+  int starty = (ymax - height) / 2;
+  int startx = (xmax - width) / 2;
+  WINDOW *wmenu = newwin(height, width, starty, startx);
+
+  box(wmenu, 0, 0);
+
+  const char* ascii_6502[7] = {0};
+  ascii_6502[0] = "  ____  _____  _____  _____ ";
+  ascii_6502[1] = " / ___||  ___||  _  |/ __  \\";
+  ascii_6502[2] = "/ /___ |___ \\ | |/' |`' / /'";
+  ascii_6502[3] = "| ___ \\    \\ \\|  /| |  / /  ";
+  ascii_6502[4] = "| \\_/ |/\\__/ /\\ |_/ /./ /___";
+  ascii_6502[5] = "\\_____/\\____/  \\___/ \\_____/";
+  ascii_6502[6] = '\0';
+
+  size_t ascii_len = sizeof(ascii_6502) / sizeof(ascii_6502[0]);
+
+  for(size_t i = 0; i < ascii_len - 1; i++) {
+    mvwprintw(wmenu, (ymax / 20) + i, (xmax / 5.5), "%s", ascii_6502[i]);
+  }
+  
+  mvwprintw(wmenu, (ymax / 20) + 8, (xmax / 5.5), "Please choose a 6502 test:");
+  mvwprintw(wmenu, (ymax / 20) + 10, (xmax / 5.5), "1) Tom Harte 6502 test suite");
+  mvwprintw(wmenu, (ymax / 20) + 11, (xmax / 5.5), "2) AllSuiteASM");
+  mvwprintw(wmenu, (ymax / 20) + 12, (xmax / 5.5), "3) Timing test by BigEd");
+  mvwprintw(wmenu, (ymax / 20) + 13, (xmax / 5.5), "4) Klaus Dormann 6502 functional test");
+  mvwprintw(wmenu, (ymax / 20) + 14, (xmax / 5.5), "5) Klaus Dormann 6502 decimal test");
+  mvwprintw(wmenu, (ymax / 20) + 15, (xmax / 5.5), "6) Klaus Dormann 6502 interrupt test");
+  mvwprintw(wmenu, (ymax / 20) + 17, (xmax / 5.5), "(Press q to quit)");
+
+  wrefresh(wmenu);
+  char option = wgetch(wmenu);
+  delwin(wmenu);
+
+  switch (option) {
+    case '1': harte_scr(); break;
+    case '2':
+    case '3':
+    case '4':
+    case '5':
+    case '6': tests_scr(option); break;
+    case 'q': break;
+  }
+  endwin();
+}
 
 int main(void) {
   m65xx_t m;
 
   clock_t start = clock();
   int pass = 0;
-
-  printf("  ____  _____  _____  _____ \n");
-  printf(" / ___||  ___||  _  |/ __  \\\n");
-  printf("/ /___ |___ \\ | |/' |`' / /'\n");
-  printf("| ___ \\    \\ \\|  /| |  / /  \n");
-  printf("| \\_/ |/\\__/ /\\ |_/ /./ /___\n");
-  printf("\\_____/\\____/  \\___/ \\_____/\n");
+  
+  menu();
 
   // Runs all tests at once for TomHarte:
+  /*
   printf("Starting 6502 test...\n");
   for(int i = 0; i < 0x100; i++) {
     char file[50];
     snprintf(file, sizeof(file), "tests/6502/v1/%02x.json", i);
-    pass += m65xx_json_tests(&m, file);
+    pass += m65xx_harte_tests(&m, file);
   }
   printf("Tests passed = %d\n", pass);
-  
+  */
   // For running a test for a specific opcode:
   // Pass: 1 (All tests pass), Pass: 0 (A test has failed)
   /*
-  pass = m65xx_json_tests(&m, "tests/6502/v1/00.json");
+  pass = m65xx_harte_tests(&m, "tests/6502/v1/00.json");
   printf("Pass: %d, opcode: 0x%02X\n", pass, m.ir);
   */
 
   // AllSuiteA test
-  allsuiteasm(&m);
+  // allsuiteasm(&m);
 
   // Timing test for legal opcodes
-  m6502_timing_test(&m);
+  // m6502_timing_test(&m);
 
   // Klaus Dormann test
-  m6502_decimal_test(&m);
-  m6502_functional_test(&m);
-  m6502_interrupt_test(&m);
+  // m6502_decimal_test(&m);
+  // m6502_functional_test(&m);
+  // m6502_interrupt_test(&m);
 
   clock_t end = clock();
 
