@@ -33,9 +33,6 @@ typedef struct {
 
 // Helper functions
 
-static inline uint8_t rb(m65xx_t* const m, uint16_t addr) { return m->ram[addr]; }
-static inline void wb(m65xx_t* const m, uint16_t addr, uint8_t data) { m->ram[addr] = data; }
-
 static inline void set_abus(m65xx_t* const m, uint16_t addr) { 
   m->pins = (m->pins & ~0xFFFFULL) | (addr & 0xFFFF);
 }
@@ -115,7 +112,7 @@ static int m65xx_harte_tests(m65xx_t* const m, const char *file) {
       uint8_t data = get_dbus(m);
 
       if(!(m->pins & RW)) {
-        m->ram[get_abus(m)] = get_dbus(m);
+        m->ram[addr] = data;
       }
 
       m65xx_tick(m);
@@ -142,7 +139,7 @@ static int m65xx_harte_tests(m65xx_t* const m, const char *file) {
       data = get_dbus(m);
 
       if(m->pins & RW) {
-        set_dbus(m, m->ram[get_abus(m)]);
+        set_dbus(m, m->ram[addr]);
       }
     }
 
@@ -199,7 +196,7 @@ static int m65xx_harte_tests(m65xx_t* const m, const char *file) {
     }
     if (match) { passed++; } else { failed++; }
   }
-  // printf("Opcode: 0x%02X | Tests passed: %zu, Tests failed: %zu\n", m->ir, passed, failed);
+  printf("Opcode: 0x%02X | Tests passed: %zu, Tests failed: %zu\n", m->ir, passed, failed);
   json_decref(root);
 
   if((passed % 10000) == 0) { return 1; } else { return 0; }
@@ -250,7 +247,7 @@ static int allsuiteasm(m65xx_t* const m) {
       }
     } while (!(m->pins & SYNC));
     if(m->pc == 0x45C0) {
-      if(rb(m, 0x0210) == 0xFF) {
+      if(m->ram[0x0210] == 0xFF) {
         printf("AllSuiteASM passed!\n");
         break;
       }
@@ -371,7 +368,7 @@ static int m6502_interrupt_test(m65xx_t* const m) {
   uint16_t pc_ = 0;
   set_abus(m, m->pc = 0x400);
 
-  wb(m, 0xBFFC, 0);
+  m->ram[0xBFFC] = 0;
   
   while (true) {
     do {  
@@ -384,9 +381,9 @@ static int m6502_interrupt_test(m65xx_t* const m) {
       }
     } while (!(m->pins & SYNC));
 
-    inte = rb(m, 0xBFFC);
+    inte = m->ram[0xBFFC];
     m6502_interrupt_handler(m);
-    wb(m, 0xBFFC, inte);
+    m->ram[0xBFFC] = inte;
     
     if (pc_ == m->pc) {
       if (m->pc == 0x06F5) {
@@ -401,128 +398,14 @@ static int m6502_interrupt_test(m65xx_t* const m) {
   return 0;
 }
 
-/*
- *
- *
- * UI for tests
- *
- *
-*/
-
-
-void harte_scr() {
-  clear();
-  refresh();
-
-  int ymax, xmax;
-  getmaxyx(stdscr, ymax, xmax);
-
-  int height = ymax / 2;
-  int width = xmax / 2;
-  int starty = (ymax - height) / 2;
-  int startx = (xmax - width) / 2;
-
-  WINDOW *name = newwin(height, width, starty, startx);
-  box(name, 0, 0);
-
-  const char* ascii_6502[7] = {0};
-  ascii_6502[0] = "  ____  _____  _____  _____ ";
-  ascii_6502[1] = " / ___||  ___||  _  |/ __  \\";
-  ascii_6502[2] = "/ /___ |___ \\ | |/' |`' / /'";
-  ascii_6502[3] = "| ___ \\    \\ \\|  /| |  / /  ";
-  ascii_6502[4] = "| \\_/ |/\\__/ /\\ |_/ /./ /___";
-  ascii_6502[5] = "\\_____/\\____/  \\___/ \\_____/";
-  ascii_6502[6] = '\0';
-
-  size_t ascii_len = sizeof(ascii_6502) / sizeof(ascii_6502[0]);
-
-  for(size_t i = 0; i < ascii_len - 1; i++) {
-    mvwprintw(name, (ymax / 20) + i, (xmax / 5.5), "%s", ascii_6502[i]);
-  }
-  
-
-  mvwprintw(name, (ymax / 20) + 8, xmax / 5.5, "TomHarte 6502 Test Suite");
-  mvwprintw(name, (ymax / 20) + 10, xmax / 5.5, "1) Run a single test file");
-  mvwprintw(name, (ymax / 20) + 11, xmax / 5.5, "2) Run all test files");
-  mvwprintw(name, (ymax / 20) + 13, xmax / 5.5, "(Press q to quit)");
-
-  wrefresh(name); 
-
-  char ch = getch();
-  endwin();
-}
-
-void tests_scr(char option) {
-  clear();
-  refresh();
-}
-
-void menu() {
-  initscr();
-  cbreak();
-  noecho();
-
-  int ymax, xmax;
-  getmaxyx(stdscr, ymax, xmax);
-
-  int height = ymax / 2;
-  int width = xmax / 2;
-  int starty = (ymax - height) / 2;
-  int startx = (xmax - width) / 2;
-  WINDOW *wmenu = newwin(height, width, starty, startx);
-
-  box(wmenu, 0, 0);
-
-  const char* ascii_6502[7] = {0};
-  ascii_6502[0] = "  ____  _____  _____  _____ ";
-  ascii_6502[1] = " / ___||  ___||  _  |/ __  \\";
-  ascii_6502[2] = "/ /___ |___ \\ | |/' |`' / /'";
-  ascii_6502[3] = "| ___ \\    \\ \\|  /| |  / /  ";
-  ascii_6502[4] = "| \\_/ |/\\__/ /\\ |_/ /./ /___";
-  ascii_6502[5] = "\\_____/\\____/  \\___/ \\_____/";
-  ascii_6502[6] = '\0';
-
-  size_t ascii_len = sizeof(ascii_6502) / sizeof(ascii_6502[0]);
-
-  for(size_t i = 0; i < ascii_len - 1; i++) {
-    mvwprintw(wmenu, (ymax / 20) + i, (xmax / 5.5), "%s", ascii_6502[i]);
-  }
-  
-  mvwprintw(wmenu, (ymax / 20) + 8, (xmax / 5.5), "Please choose a 6502 test:");
-  mvwprintw(wmenu, (ymax / 20) + 10, (xmax / 5.5), "1) Tom Harte 6502 test suite");
-  mvwprintw(wmenu, (ymax / 20) + 11, (xmax / 5.5), "2) AllSuiteASM");
-  mvwprintw(wmenu, (ymax / 20) + 12, (xmax / 5.5), "3) Timing test by BigEd");
-  mvwprintw(wmenu, (ymax / 20) + 13, (xmax / 5.5), "4) Klaus Dormann 6502 functional test");
-  mvwprintw(wmenu, (ymax / 20) + 14, (xmax / 5.5), "5) Klaus Dormann 6502 decimal test");
-  mvwprintw(wmenu, (ymax / 20) + 15, (xmax / 5.5), "6) Klaus Dormann 6502 interrupt test");
-  mvwprintw(wmenu, (ymax / 20) + 17, (xmax / 5.5), "(Press q to quit)");
-
-  wrefresh(wmenu);
-  char option = wgetch(wmenu);
-  delwin(wmenu);
-
-  switch (option) {
-    case '1': harte_scr(); break;
-    case '2':
-    case '3':
-    case '4':
-    case '5':
-    case '6': tests_scr(option); break;
-    case 'q': break;
-  }
-  endwin();
-}
-
 int main(void) {
   m65xx_t m;
 
   clock_t start = clock();
   int pass = 0;
   
-  menu();
-
   // Runs all tests at once for TomHarte:
-  /*
+  
   printf("Starting 6502 test...\n");
   for(int i = 0; i < 0x100; i++) {
     char file[50];
@@ -530,7 +413,7 @@ int main(void) {
     pass += m65xx_harte_tests(&m, file);
   }
   printf("Tests passed = %d\n", pass);
-  */
+  
   // For running a test for a specific opcode:
   // Pass: 1 (All tests pass), Pass: 0 (A test has failed)
   /*
@@ -539,15 +422,15 @@ int main(void) {
   */
 
   // AllSuiteA test
-  // allsuiteasm(&m);
+  allsuiteasm(&m);
 
   // Timing test for legal opcodes
-  // m6502_timing_test(&m);
+  m6502_timing_test(&m);
 
   // Klaus Dormann test
-  // m6502_decimal_test(&m);
-  // m6502_functional_test(&m);
-  // m6502_interrupt_test(&m);
+  m6502_decimal_test(&m);
+  m6502_functional_test(&m);
+  m6502_interrupt_test(&m);
 
   clock_t end = clock();
 

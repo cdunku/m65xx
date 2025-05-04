@@ -2,7 +2,12 @@
 
 CC := gcc
 CFLAGS := -O3 -std=c2x -Iinclude/ 
-LDFLAGS := -ljansson -lncurses 
+LDFLAGS := -ljansson -lncurses
+
+#CC := o64-clang
+#CFLAGS := -O3 -std=c2x -Iinclude/ -I$(HOME)/Github/osxcross/target/macports/pkgs/opt/local/include
+#LDFLAGS := -L$(HOME)/Github/osxcross/target/macports/pkgs/opt/local/lib -ljansson -lncurses
+
 BIN := m65xx
 
 # Find all .c files in the current directory
