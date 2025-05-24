@@ -2,13 +2,20 @@
 
 **m65xx** is a simple, clean, and cycle-ticked emulator for the [MOS Technology 6502](https://en.wikipedia.org/wiki/MOS_Technology_6502) CPU.
 
+Please note that the projects has been compiled using `std=c2x`, this version alongside `std=c11` are the recommended versions.
+
+Successfully compiled under MacOS Sonoma and Fedora 42. If you are using Windows, please use WSL.
+
 This project is licensed under the **GNU GPLv3**, please abide by the license.
 
 ## Little about the emulator
 
 **Cycle-ticked emulation** — Accurate per-clock-cycle simulation of instruction timing  
+
 **MOS 6502 core** — Fully implements the original 6502 instruction set (both documented and undocumented instructions)
+
 **Planned 65C02 support** — Adding both documented and undocumented 65c02 instructions in the future
+
 **The 6502 emulator has been tested by the following test suites:** 
 - [Klaus Dormann](https://github.com/Klaus2m5/6502_65C02_functional_tests) (6502): functional, decimal and interrupts tests
 - [AllSuiteASM](https://github.com/MusicOfMusiX/6502emu/blob/master/AllSuiteA.asm)
