@@ -2,7 +2,7 @@
 
 CC := gcc
 CFLAGS := -O3 -std=c2x -Iinclude/ 
-LDFLAGS := -ljansson -lncurses
+LDFLAGS := -ljansson
 
 BIN := m65xx
 
