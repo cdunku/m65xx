@@ -1,30 +1,43 @@
-.PHONY: all clean
+.PHONY: all production release clean
 
 CC := gcc
-CFLAGS := -O3 -std=c2x -Iinclude/ 
-LDFLAGS := -ljansson
-
 BIN := m65xx
 
-# Find all .c files in the current directory
-SRCS := $(wildcard src/*.c) 
+INCLUDES := -Iinclude/
+STD := -std=c2x
 
-# Convert .c files to .o files
+SRCS := $(wildcard src/*.c)
 OBJS := $(SRCS:.c=.o)
 
-all: $(BIN)
+# Default target 
+all: production
 
-# Link the object files to create the executable
+# Production build 
+production: CFLAGS := -g -O1 -fsanitize=address,undefined -fno-omit-frame-pointer $(STD) $(INCLUDES)
+production: LDFLAGS := -ljansson -fsanitize=address,undefined
+production: $(BIN)
+
+# Release build
+release: CFLAGS := -O3 -march=native -flto -fno-plt -fomit-frame-pointer -DNDEBUG $(STD) $(INCLUDES)
+release: LDFLAGS := -ljansson -flto
+release: $(BIN)
+
+# Link the binary
 $(BIN): $(OBJS)
-	@echo "[linking] $(OBJS)"
-	@echo "[produced] $(BIN)"
-	@$(CC) -o $@ $(OBJS) $(LDFLAGS)  
+	@echo "[linking]   $(OBJS)"
+	@echo "[CFLAGS]    $(CFLAGS)"
+	@echo "[LDFLAGS]   $(LDFLAGS)"
+	@$(CC) -o $@ $(OBJS) $(LDFLAGS)
+	@echo "[produced]  $(BIN)"
 
-# Pattern rule to compile .c files into .o files with individual messages
+# Compile each .c to .o
 %.o: %.c
 	@echo "[compiling] $<"
-	@$(CC) $(CFLAGS) -c $< -o $@ 
+	@echo "[CFLAGS]    $(CFLAGS)"
+	@$(CC) $(CFLAGS) -c $< -o $@
 
+# Clean generated files
 clean:
-	@echo "[cleaned] $(BIN) $(OBJS)"
+	@echo "[cleaned]   $(BIN) $(OBJS)"
 	@rm -rvf $(OBJS) $(BIN) *.gch ncore.* > /dev/null 2>&1
+
