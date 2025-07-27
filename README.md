@@ -30,7 +30,8 @@ To build and run:
 ```bash
 git clone https://github.com/cdunku/m65xx.git
 cd m65xx
-make
+make # For production build
+make release # For release build
 ```
 
 ## Running the tests yourself
